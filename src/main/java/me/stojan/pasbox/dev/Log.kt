@@ -30,7 +30,7 @@ import me.stojan.pasbox.BuildConfig
 object Log {
 
   class Entry {
-    internal val builder = StringBuilder()
+    private val builder = StringBuilder()
 
     lateinit var tag: String
     var exception: Throwable? = null
