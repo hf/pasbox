@@ -29,30 +29,44 @@ import com.google.android.gms.tasks.Task
 import io.reactivex.Completable
 import io.reactivex.Single
 
-inline fun <T> Task<T>.toCompletable() = Completable.create { emitter ->
+fun <T> Task<T>.toCompletable() = Completable.create { emitter ->
+  var cancelled = false
+
   this.addOnSuccessListener {
-    emitter.onComplete()
+    if (!cancelled) {
+      emitter.onComplete()
+    }
   }
 
   this.addOnFailureListener { error ->
-    emitter.onError(error)
+    if (!cancelled) {
+      emitter.onError(error)
+    }
   }
 
   this.addOnCanceledListener {
+    cancelled = true
     emitter.onError(Error("Task was cancelled"))
   }
 }
 
-inline fun <T> Task<T>.toSingle(): Single<T> = Single.create { emitter ->
+fun <T> Task<T>.toSingle(): Single<T> = Single.create { emitter ->
+  var cancelled = false
+
   this.addOnSuccessListener { result ->
-    emitter.onSuccess(result)
+    if (!cancelled) {
+      emitter.onSuccess(result)
+    }
   }
 
   this.addOnFailureListener { error ->
-    emitter.onError(error)
+    if (!cancelled) {
+      emitter.onError(error)
+    }
   }
 
   this.addOnCanceledListener {
+    cancelled = true
     emitter.onError(Error("Task was cancelled"))
   }
 }

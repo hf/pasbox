@@ -55,6 +55,9 @@ class JobService : android.app.job.JobService() {
     JobRegistry.findForId(params.jobId).let { job ->
       runningJobs[params] = job.run(this@JobService, params)
         .observeOn(AndroidSchedulers.mainThread())
+        .doOnDispose {
+          Log.v(this@JobService) { text("Job was disposed"); param("job", job) }
+        }
         .subscribe({
           mainThreadOnly {
             Log.v(this@JobService) { text("Job finished successfully"); param("job", job); }
