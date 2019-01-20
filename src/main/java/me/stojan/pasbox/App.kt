@@ -26,5 +26,25 @@
 package me.stojan.pasbox
 
 import android.app.Application
+import me.stojan.pasbox.dev.Log
 
-class App : Application()
+class App : Application() {
+  companion object {
+    internal lateinit var INSTANCE: App
+
+    val Current: App get() = INSTANCE
+    val Components: AppComponents get() = INSTANCE.components
+  }
+
+  private lateinit var _components: AppComponents
+
+  val components: AppComponents get() = _components
+
+  override fun onCreate() {
+    super.onCreate()
+    INSTANCE = this
+    _components = RuntimeAppComponents(this)
+
+    Log.v(this@App) { text("Created") }
+  }
+}

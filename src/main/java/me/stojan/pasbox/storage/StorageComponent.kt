@@ -23,9 +23,15 @@
  *
  */
 
-package me.stojan.pasbox.ui
+package me.stojan.pasbox.storage
 
-import me.stojan.pasbox.App
-import me.stojan.pasbox.AppActivity
+import android.database.sqlite.SQLiteDatabase
+import dagger.Component
+import io.reactivex.Single
+import javax.inject.Singleton
 
-class UIActivity(val app: App = App.Current) : AppActivity()
+@Component(modules = [AppStorageModule::class])
+@Singleton
+interface StorageComponent {
+  fun database(): Single<SQLiteDatabase>
+}

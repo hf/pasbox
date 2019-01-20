@@ -23,9 +23,10 @@
  *
  */
 
-package me.stojan.pasbox.ui
+package me.stojan.pasbox
 
-import me.stojan.pasbox.App
-import me.stojan.pasbox.AppActivity
+import me.stojan.pasbox.storage.StorageComponent
 
-class UIActivity(val app: App = App.Current) : AppActivity()
+interface AppComponents {
+  val Storage: StorageComponent
+}

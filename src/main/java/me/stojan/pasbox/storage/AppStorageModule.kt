@@ -23,9 +23,38 @@
  *
  */
 
-package me.stojan.pasbox.ui
+package me.stojan.pasbox.storage
 
+import android.database.sqlite.SQLiteDatabase
+import dagger.Module
+import dagger.Provides
+import io.reactivex.Single
+import io.reactivex.schedulers.Schedulers
 import me.stojan.pasbox.App
-import me.stojan.pasbox.AppActivity
+import me.stojan.pasbox.dev.workerThreadOnly
+import javax.inject.Named
+import javax.inject.Singleton
 
-class UIActivity(val app: App = App.Current) : AppActivity()
+@Module
+class AppStorageModule(val app: App) {
+  @Provides
+  @Named("SQLite Database")
+  fun provideSQLiteDatabasePath(): String = app.getDatabasePath("pasbox.sqlite3").absolutePath
+
+  @Provides
+  @Singleton
+  fun provideSQLiteDatabase(@Named("SQLite Database") databasePath: String): Single<SQLiteDatabase> =
+    Single.fromCallable {
+      workerThreadOnly {
+        SQLiteDatabase.openDatabase(
+          databasePath, null, 0 or
+            SQLiteDatabase.OPEN_READWRITE or
+            SQLiteDatabase.CREATE_IF_NECESSARY or
+            SQLiteDatabase.NO_LOCALIZED_COLLATORS or
+            SQLiteDatabase.ENABLE_WRITE_AHEAD_LOGGING
+        )
+      }
+    }
+      .subscribeOn(Schedulers.io())
+      .cache()
+}

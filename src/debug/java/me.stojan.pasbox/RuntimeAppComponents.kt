@@ -23,9 +23,16 @@
  *
  */
 
-package me.stojan.pasbox.ui
+package me.stojan.pasbox
 
-import me.stojan.pasbox.App
-import me.stojan.pasbox.AppActivity
+import me.stojan.pasbox.storage.AppStorageModule
+import me.stojan.pasbox.storage.DaggerStorageComponent
+import me.stojan.pasbox.storage.StorageComponent
 
-class UIActivity(val app: App = App.Current) : AppActivity()
+class RuntimeAppComponents(app: App) : AppComponents {
+
+  override val Storage: StorageComponent = DaggerStorageComponent.builder()
+    .appStorageModule(AppStorageModule(app))
+    .build()
+
+}
