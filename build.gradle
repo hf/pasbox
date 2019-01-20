@@ -1,0 +1,105 @@
+/*
+ * Copyright (C) 2019
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining
+ * a copy of this software and associated documentation files (the
+ * "Software"), to deal in the Software without restriction, including
+ * without limitation the rights to use, copy, modify, merge, publish,
+ * distribute, sublicense, and/or sell copies of the Software, and to
+ * permit persons to whom the Software is furnished to do so, subject to
+ * the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
+ * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+ * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ *
+ */
+
+apply plugin: 'com.android.application'
+apply plugin: 'kotlin-android'
+apply plugin: 'kotlin-android-extensions'
+apply plugin: 'kotlin-kapt'
+apply plugin: 'com.google.protobuf'
+
+android {
+  compileSdkVersion 28
+  defaultConfig {
+    applicationId "me.stojan.pasbox"
+    minSdkVersion 23
+    targetSdkVersion 28
+    versionCode 1
+    versionName "1.0"
+    testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+  }
+
+  signingConfigs {
+    debug {
+      keyAlias "android"
+      keyPassword "android"
+      storeFile file("keystores/development.keystore")
+      storePassword "android"
+    }
+  }
+
+  buildTypes {
+    release {
+      minifyEnabled false
+      proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+    }
+  }
+}
+
+protobuf {
+  protoc {
+    artifact = 'com.google.protobuf:protoc:3.6.1'
+  }
+  plugins {
+    javalite {
+      // The codegen for lite comes as a separate artifact
+      artifact = 'com.google.protobuf:protoc-gen-javalite:3.0.0'
+    }
+  }
+  generateProtoTasks {
+    all().each { task ->
+      task.builtins {
+        // In most cases you don't need the full Java output
+        // if you use the lite output.
+        remove java
+      }
+      task.plugins {
+        javalite {}
+      }
+    }
+  }
+}
+
+dependencies {
+  implementation fileTree(dir: 'libs', include: ['*.jar'])
+  implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlin_version"
+  implementation 'androidx.appcompat:appcompat:1.0.2'
+  implementation 'androidx.recyclerview:recyclerview:1.0.0'
+
+  implementation 'io.reactivex.rxjava2:rxjava:2.2.5'
+  implementation 'io.reactivex.rxjava2:rxandroid:2.1.0'
+
+  implementation 'com.google.protobuf:protobuf-lite:3.0.1'
+
+  implementation 'com.google.crypto.tink:tink-android:1.2.1'
+
+  implementation 'com.google.android.gms:play-services-safetynet:16.0.0'
+
+  implementation 'com.squareup.moshi:moshi:1.8.0'
+  kapt 'com.squareup.moshi:moshi-kotlin-codegen:1.8.0'
+
+  testImplementation 'junit:junit:4.12'
+  androidTestImplementation 'androidx.test:runner:1.1.1'
+  androidTestImplementation 'androidx.test.espresso:espresso-core:3.1.1'
+}
