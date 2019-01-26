@@ -40,12 +40,4 @@ class Base64Adapter {
   @FromJson
   @Base64
   fun fromJson(base64: String) = android.util.Base64.decode(base64, 0)
-
-  @ToJson
-  fun toJson(@Base64 byteArrays: Array<ByteArray?>) =
-    Array(byteArrays.size) { i -> android.util.Base64.encode(byteArrays[i], 0) }
-
-  @FromJson
-  @Base64
-  fun fromJson(base64: Array<String?>) = Array(base64.size) { i -> android.util.Base64.decode(base64[i], 0) }
 }
