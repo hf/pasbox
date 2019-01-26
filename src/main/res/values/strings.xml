@@ -25,4 +25,7 @@
 
 <resources>
   <string name="app_name">Pasbox</string>
+
+  <string name="setup_welcome">Welcome to Pasbox, a different kind of password manager.</string>
+  <string name="setup_in_progress">We\'re setting up your phone as we speak…</string>
 </resources>

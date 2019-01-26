@@ -25,7 +25,11 @@
 
 package me.stojan.pasbox
 
+import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.widget.NestedScrollView
+import androidx.drawerlayout.widget.DrawerLayout
+import com.google.android.material.floatingactionbutton.FloatingActionButton
 import io.reactivex.disposables.CompositeDisposable
 import io.reactivex.disposables.Disposable
 
@@ -36,6 +40,25 @@ abstract class AppActivity : AppCompatActivity() {
 
   private var started = false
   private var resumed = false
+
+  private lateinit var _navigationDrawer: DrawerLayout
+  private lateinit var _floatingAction: FloatingActionButton
+  private lateinit var _content: NestedScrollView
+
+  val navigationDrawer: DrawerLayout get() = _navigationDrawer
+  val floatingAction: FloatingActionButton get() = _floatingAction
+  val content: NestedScrollView get() = _content
+
+  override fun onCreate(savedInstanceState: Bundle?) {
+    super.onCreate(null)
+    setContentView(R.layout.ui_main)
+
+    setSupportActionBar(findViewById(R.id.toolbar))
+
+    _navigationDrawer = findViewById(R.id.navigation_drawer)
+    _floatingAction = findViewById(R.id.floating_action)
+    _content = findViewById(R.id.content)
+  }
 
   fun disposeOnPause(vararg disposables: Disposable) {
     if (!resumed) {
@@ -67,11 +90,13 @@ abstract class AppActivity : AppCompatActivity() {
 
   override fun onPause() {
     super.onPause()
+    resumed = false
     pauseDisposables.clear()
   }
 
   override fun onStop() {
     super.onStop()
+    started = false
     stopDisposables.dispose()
   }
 
