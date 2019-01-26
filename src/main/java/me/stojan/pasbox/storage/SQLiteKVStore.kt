@@ -28,6 +28,7 @@ package me.stojan.pasbox.storage
 import android.database.sqlite.SQLiteDatabase
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
+import com.google.protobuf.toByteString
 import io.reactivex.Completable
 import io.reactivex.Maybe
 import io.reactivex.Observable
@@ -39,35 +40,40 @@ import me.stojan.pasbox.dev.Log
 import me.stojan.pasbox.dev.query
 import me.stojan.pasbox.dev.workerThreadOnly
 import java.security.KeyStore
-import java.util.*
+import javax.crypto.Cipher
 import javax.crypto.KeyGenerator
-import javax.crypto.Mac
+import javax.crypto.spec.IvParameterSpec
 
 class SQLiteKVStore(db: Single<SQLiteDatabase>) : KVStore {
 
   private val db = db.map { db ->
     workerThreadOnly {
       db.execSQL(
-        "CREATE TABLE IF NOT EXISTS kvstore (id INTEGER PRIMARY KEY, value BLOB DEFAULT NULL, mac BLOB DEFAULT NULL, created_at INTEGER DEFAULT CURRENT_TIMESTAMP, modified_at INTEGER DEFAULT CURRENT_TIMESTAMP);"
+        "CREATE TABLE IF NOT EXISTS kvstore (id INTEGER PRIMARY KEY, value BLOB DEFAULT NULL, created_at INTEGER DEFAULT CURRENT_TIMESTAMP, modified_at INTEGER DEFAULT CURRENT_TIMESTAMP);"
       )
 
       val macKey = KeyStore.getInstance("AndroidKeyStore")!!.run {
         load(null)
 
-        getKey("kvstore-mac", null).let { key ->
+        getKey("kvstore-aead", null).let { key ->
           if (null == key) {
-            Log.v(this@SQLiteKVStore) { text("Generating HmacSha256 key") }
-            KeyGenerator.getInstance("HmacSha256", "AndroidKeyStore")
+            Log.v(this@SQLiteKVStore) { text("Generating AES256GCM key") }
+            KeyGenerator.getInstance("AES", "AndroidKeyStore")
               .apply {
                 init(
-                  KeyGenParameterSpec.Builder("kvstore-mac", KeyProperties.PURPOSE_SIGN or KeyProperties.PURPOSE_VERIFY)
-                    .setDigests(KeyProperties.DIGEST_SHA256)
+                  KeyGenParameterSpec.Builder(
+                    "kvstore-aead",
+                    KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT
+                  )
+                    .setKeySize(256)
+                    .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
+                    .setRandomizedEncryptionRequired(true)
                     .build()
                 )
               }
               .generateKey()
           } else {
-            Log.v(this@SQLiteKVStore) { text("Loading HmacSha256 key") }
+            Log.v(this@SQLiteKVStore) { text("Loading AES256GCM key") }
             key
           }
         }
@@ -90,18 +96,24 @@ class SQLiteKVStore(db: Single<SQLiteDatabase>) : KVStore {
 
   override fun put(key: Int, value: Single<ByteArray>): Completable =
     value.flatMapCompletable { bytes ->
-      db.flatMapCompletable { (db, macKey) ->
+      db.flatMapCompletable { (db, dbKey) ->
         Completable.fromCallable {
           workerThreadOnly {
-            db.compileStatement("INSERT OR REPLACE INTO kvstore (id, value, mac, modified_at) VALUES (?, ?, ?, ?);")
+            db.compileStatement("INSERT OR REPLACE INTO kvstore (id, value, modified_at) VALUES (?, ?, ?);")
               .apply {
+                val now = System.currentTimeMillis() / 1000
+
                 bindLong(1, key.toLong())
-                bindBlob(2, bytes)
-                bindBlob(3, Mac.getInstance("HmacSha256").apply {
-                  init(macKey)
-                  Log.v(this@SQLiteKVStore) { text("Computing HMAC with"); param("provider", provider.name) }
-                }.doFinal(bytes))
-                bindLong(4, System.currentTimeMillis() / 1000)
+
+                bindBlob(2, Cipher.getInstance("AES/GCM/NoPadding").run {
+                  init(Cipher.ENCRYPT_MODE, dbKey)
+                  SQLiteKVStoreValue.newBuilder()
+                    .setAesGcmIv(iv!!.toByteString())
+                    .setAesGcmCiphertext(doFinal(bytes).toByteString())
+                    .build()
+                }.toByteArray())
+
+                bindLong(3, now)
               }.executeInsert()
 
             changes.onNext(Pair(key, bytes))
@@ -111,39 +123,28 @@ class SQLiteKVStore(db: Single<SQLiteDatabase>) : KVStore {
     }
 
   override fun get(key: Int): Maybe<ByteArray> =
-    db.flatMapMaybe { (db, macKey) ->
+    db.flatMapMaybe { (db, dbKey) ->
       Maybe.fromCallable<ByteArray> {
         workerThreadOnly {
-          db.query { select("id", "value", "mac"); from("kvstore"); where("id = ?"); args(key); limit(1) }
+          db.query { select("id", "value"); from("kvstore"); where("id = ?"); args(key); limit(1) }
             .use { cursor ->
               if (!cursor.moveToFirst()) {
                 null
               } else {
                 val valueIndex = cursor.getColumnIndexOrThrow("value")
-                val macIndex = cursor.getColumnIndexOrThrow("mac")
 
-                if (cursor.isNull(valueIndex) != cursor.isNull(macIndex)) {
-                  throw Error("Database has been tampered at key=$key")
+                if (cursor.isNull(valueIndex)) {
+                  null
                 } else {
-                  if (cursor.isNull(valueIndex)) {
-                    null
-                  } else {
-                    val value = cursor.getBlob(valueIndex)
-                    val mac = cursor.getBlob(macIndex)
+                  val value = cursor.getBlob(valueIndex)
 
-                    val computedMac = Mac.getInstance("HmacSha256")
-                      .apply {
-                        init(macKey)
-                        Log.v(this@SQLiteKVStore) { text("Verifying HMAC with"); param("provider", provider.name) }
+                  SQLiteKVStoreValue.parseFrom(value.toByteString())
+                    .let { value ->
+                      Cipher.getInstance("AES/GCM/NoPadding").run {
+                        init(Cipher.DECRYPT_MODE, dbKey, IvParameterSpec(value.aesGcmIv.toByteArray()))
+                        doFinal(value.aesGcmCiphertext.toByteArray())
                       }
-                      .doFinal(value)
-
-                    if (!Arrays.equals(mac, computedMac)) {
-                      throw Error("Database has been tampered at key=$key")
                     }
-
-                    value
-                  }
                 }
               }
             }
@@ -158,7 +159,7 @@ class SQLiteKVStore(db: Single<SQLiteDatabase>) : KVStore {
     db.flatMapCompletable { (db, _) ->
       Completable.fromCallable {
         workerThreadOnly {
-          db.compileStatement("UPDATE kvstore SET value = NULL, mac = NULL, modified_at = CURRENT_TIMESTAMP WHERE id = ?;")
+          db.compileStatement("UPDATE kvstore SET value = NULL, modified_at = CURRENT_TIMESTAMP WHERE id = ?;")
             .apply {
               bindLong(1, key.toLong())
             }
