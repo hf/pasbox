@@ -25,14 +25,7 @@
 
 package me.stojan.pasbox.storage
 
-import android.database.sqlite.SQLiteDatabase
-import dagger.Component
-import io.reactivex.Single
-import javax.inject.Singleton
-
-@Component(modules = [AppStorageModule::class])
-@Singleton
-interface StorageComponent {
-  fun database(): Single<SQLiteDatabase>
-  fun kvstore(): KVStore
+object KV {
+  const val DEVICE_ID = 1024
+  const val SAFETY_NET_ATTESTATION = 2048
 }

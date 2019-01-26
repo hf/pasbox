@@ -27,8 +27,10 @@ package me.stojan.pasbox
 
 import android.app.Application
 import me.stojan.pasbox.dev.Log
+import me.stojan.pasbox.jobs.Jobs
+import me.stojan.pasbox.safetynet.SafetyNetAttestationJob
 
-class App : Application() {
+class App : Application(), HasComponents {
   companion object {
     internal lateinit var INSTANCE: App
 
@@ -38,7 +40,7 @@ class App : Application() {
 
   private lateinit var _components: AppComponents
 
-  val components: AppComponents get() = _components
+  override val components: AppComponents get() = _components
 
   override fun onCreate() {
     super.onCreate()
@@ -46,5 +48,16 @@ class App : Application() {
     _components = RuntimeAppComponents(this)
 
     Log.v(this@App) { text("Created") }
+
+    warmup()
+    startup()
+  }
+
+  private fun warmup() {
+    components.Storage.kvstore().warmup()
+  }
+
+  private fun startup() {
+    Jobs.schedule(this, SafetyNetAttestationJob.asap)
   }
 }

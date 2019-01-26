@@ -57,4 +57,8 @@ class AppStorageModule(val app: App) {
     }
       .subscribeOn(Schedulers.io())
       .cache()
+
+  @Provides
+  @Singleton
+  fun provideSQLiteKVStore(db: Single<SQLiteDatabase>): KVStore = SQLiteKVStore(db)
 }

@@ -29,7 +29,7 @@ import android.os.Looper
 
 inline fun <R> mainThreadOnly(proc: () -> R): R {
   if (Thread.currentThread() != Looper.getMainLooper().thread) {
-    throw Error("Expected main thread but was ${Thread.currentThread()}")
+    throw RuntimeException("Expected main thread but was ${Thread.currentThread()}")
   }
 
   return proc()
@@ -37,7 +37,7 @@ inline fun <R> mainThreadOnly(proc: () -> R): R {
 
 inline fun <R> workerThreadOnly(proc: () -> R): R {
   if (Thread.currentThread() == Looper.getMainLooper().thread) {
-    throw Error("Expected worker thread but was main thread")
+    throw RuntimeException("Expected worker thread but was main thread")
   }
 
   return proc()

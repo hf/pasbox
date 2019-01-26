@@ -1,0 +1,55 @@
+{
+  "project_info": {
+    "project_number": "726329214218",
+    "firebase_url": "https://pasbox-development.firebaseio.com",
+    "project_id": "pasbox-development",
+    "storage_bucket": "pasbox-development.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:726329214218:android:2d7f75db8ced45a7",
+        "android_client_info": {
+          "package_name": "me.stojan.pasbox"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "726329214218-sr5irlub0husnja2ge8c8rrsckvfrdi6.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "me.stojan.pasbox",
+            "certificate_hash": "ecb0384d4d15e0c97e4318fa146e3b64d7c3c620"
+          }
+        },
+        {
+          "client_id": "726329214218-1qafpjgau9oi5gjtfkpdccgl8gdvj4ov.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAqvQZRhxbXLHWLzOpQdMroUTjrDNSE-yQ"
+        }
+      ],
+      "services": {
+        "analytics_service": {
+          "status": 1
+        },
+        "appinvite_service": {
+          "status": 2,
+          "other_platform_oauth_client": [
+            {
+              "client_id": "726329214218-1qafpjgau9oi5gjtfkpdccgl8gdvj4ov.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        },
+        "ads_service": {
+          "status": 2
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

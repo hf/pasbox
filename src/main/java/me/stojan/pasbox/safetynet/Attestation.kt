@@ -23,16 +23,24 @@
  *
  */
 
-package me.stojan.pasbox.storage
+package me.stojan.pasbox.safetynet
 
-import android.database.sqlite.SQLiteDatabase
-import dagger.Component
-import io.reactivex.Single
-import javax.inject.Singleton
+import com.squareup.moshi.JsonClass
+import me.stojan.pasbox.json.Base64
 
-@Component(modules = [AppStorageModule::class])
-@Singleton
-interface StorageComponent {
-  fun database(): Single<SQLiteDatabase>
-  fun kvstore(): KVStore
-}
+@JsonClass(generateAdapter = true)
+internal data class Attestation(
+  var nonce: String? = null,
+  var timestampMs: Long = 0L,
+  var apkPackageName: String? = null,
+
+  @Base64
+  var apkCertificateDigestSha256: Array<ByteArray?>? = null,
+
+  var ctsProfileMatch: Boolean = false,
+  var basicIntegrity: Boolean = false,
+  var advice: String? = null,
+
+  @Base64
+  var apkDigestSha256: ByteArray? = null
+)

@@ -25,6 +25,8 @@
 
 package me.stojan.pasbox
 
+import me.stojan.pasbox.json.DaggerJSONComponent
+import me.stojan.pasbox.json.JSONComponent
 import me.stojan.pasbox.storage.AppStorageModule
 import me.stojan.pasbox.storage.DaggerStorageComponent
 import me.stojan.pasbox.storage.StorageComponent
@@ -34,5 +36,7 @@ class RuntimeAppComponents(app: App) : AppComponents {
   override val Storage: StorageComponent = DaggerStorageComponent.builder()
     .appStorageModule(AppStorageModule(app))
     .build()
+
+  override val JSON: JSONComponent = DaggerJSONComponent.builder().build()
 
 }

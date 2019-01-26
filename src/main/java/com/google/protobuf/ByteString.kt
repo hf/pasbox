@@ -23,16 +23,6 @@
  *
  */
 
-package me.stojan.pasbox.storage
+package com.google.protobuf
 
-import android.database.sqlite.SQLiteDatabase
-import dagger.Component
-import io.reactivex.Single
-import javax.inject.Singleton
-
-@Component(modules = [AppStorageModule::class])
-@Singleton
-interface StorageComponent {
-  fun database(): Single<SQLiteDatabase>
-  fun kvstore(): KVStore
-}
+fun ByteArray.toByteString() = ByteString.wrap(this)

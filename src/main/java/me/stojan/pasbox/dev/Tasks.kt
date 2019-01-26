@@ -25,49 +25,33 @@
 
 package me.stojan.pasbox.dev
 
+import android.os.Looper
 import com.google.android.gms.tasks.Task
-import io.reactivex.Completable
-import io.reactivex.Single
+import com.google.android.gms.tasks.Tasks
+import io.reactivex.Maybe
 
-fun <T> Task<T>.toCompletable() = Completable.create { emitter ->
-  var cancelled = false
+fun <T> Task<T?>.toMaybe(): Maybe<T> =
+  Maybe.create { emitter ->
+    if (Looper.getMainLooper().isCurrentThread) {
+      var cancelled = false
+      this.addOnSuccessListener { value ->
+        if (!cancelled) {
+          emitter.onSuccess(value!!)
+        }
+      }
 
-  this.addOnSuccessListener {
-    if (!cancelled) {
-      emitter.onComplete()
+      this.addOnFailureListener { error ->
+        if (!cancelled) {
+          emitter.onError(error)
+        }
+      }
+
+      this.addOnCanceledListener {
+        cancelled = true
+        emitter.onError(Error("Task was cancelled"))
+      }
+    } else {
+      emitter.onSuccess(Tasks.await(this)!!)
     }
   }
-
-  this.addOnFailureListener { error ->
-    if (!cancelled) {
-      emitter.onError(error)
-    }
-  }
-
-  this.addOnCanceledListener {
-    cancelled = true
-    emitter.onError(Error("Task was cancelled"))
-  }
-}
-
-fun <T> Task<T>.toSingle(): Single<T> = Single.create { emitter ->
-  var cancelled = false
-
-  this.addOnSuccessListener { result ->
-    if (!cancelled) {
-      emitter.onSuccess(result)
-    }
-  }
-
-  this.addOnFailureListener { error ->
-    if (!cancelled) {
-      emitter.onError(error)
-    }
-  }
-
-  this.addOnCanceledListener {
-    cancelled = true
-    emitter.onError(Error("Task was cancelled"))
-  }
-}
 

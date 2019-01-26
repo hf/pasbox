@@ -30,10 +30,14 @@ import me.stojan.pasbox.BuildConfig
 object Log {
 
   class Entry {
-    private val builder = StringBuilder()
+    private val builder = StringBuilder().append('(').append(Thread.currentThread().name).append(")    ")
 
     lateinit var tag: String
     var exception: Throwable? = null
+
+    fun error(exception: Throwable) {
+      this.exception = exception
+    }
 
     fun text(text: String) {
       builder.append(text)

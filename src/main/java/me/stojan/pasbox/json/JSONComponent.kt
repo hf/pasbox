@@ -23,16 +23,14 @@
  *
  */
 
-package me.stojan.pasbox.storage
+package me.stojan.pasbox.json
 
-import android.database.sqlite.SQLiteDatabase
+import com.squareup.moshi.Moshi
 import dagger.Component
-import io.reactivex.Single
 import javax.inject.Singleton
 
-@Component(modules = [AppStorageModule::class])
+@Component(modules = [MoshiModule::class])
 @Singleton
-interface StorageComponent {
-  fun database(): Single<SQLiteDatabase>
-  fun kvstore(): KVStore
+interface JSONComponent {
+  fun moshi(): Moshi
 }

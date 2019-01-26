@@ -1,0 +1,19 @@
+syntax = "proto3";
+
+option java_multiple_files = true;
+option java_package = "me.stojan.pasbox.safetynet";
+
+message SafetyNetAttestation {
+  string attestation = 1;
+  uint64 requested_at = 2;
+  uint64 received_at = 3;
+
+  string nonce = 16;
+  uint64 timestamp_ms = 17;
+  string apk_package_name = 18;
+  bytes apk_certificate_digest_sha_256 = 19;
+  bytes apk_digest_sha_256 = 20;
+  bool cts_profile_match = 21;
+  bool basic_integrity = 22;
+  string advice = 23;
+}

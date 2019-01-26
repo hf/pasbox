@@ -23,16 +23,29 @@
  *
  */
 
-package me.stojan.pasbox.storage
+package me.stojan.pasbox.json
 
-import android.database.sqlite.SQLiteDatabase
-import dagger.Component
-import io.reactivex.Single
-import javax.inject.Singleton
+import com.squareup.moshi.FromJson
+import com.squareup.moshi.JsonQualifier
+import com.squareup.moshi.ToJson
 
-@Component(modules = [AppStorageModule::class])
-@Singleton
-interface StorageComponent {
-  fun database(): Single<SQLiteDatabase>
-  fun kvstore(): KVStore
+@Retention(AnnotationRetention.RUNTIME)
+@JsonQualifier
+annotation class Base64
+
+class Base64Adapter {
+  @ToJson
+  fun toJson(@Base64 bytes: ByteArray) = android.util.Base64.encode(bytes, 0)
+
+  @FromJson
+  @Base64
+  fun fromJson(base64: String) = android.util.Base64.decode(base64, 0)
+
+  @ToJson
+  fun toJson(@Base64 byteArrays: Array<ByteArray?>) =
+    Array(byteArrays.size) { i -> android.util.Base64.encode(byteArrays[i], 0) }
+
+  @FromJson
+  @Base64
+  fun fromJson(base64: Array<String?>) = Array(base64.size) { i -> android.util.Base64.decode(base64[i], 0) }
 }

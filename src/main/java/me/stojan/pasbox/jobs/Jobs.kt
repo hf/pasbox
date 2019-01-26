@@ -23,16 +23,19 @@
  *
  */
 
-package me.stojan.pasbox.storage
+package me.stojan.pasbox.jobs
 
-import android.database.sqlite.SQLiteDatabase
-import dagger.Component
-import io.reactivex.Single
-import javax.inject.Singleton
+import android.app.job.JobInfo
+import android.app.job.JobScheduler
+import android.content.Context
 
-@Component(modules = [AppStorageModule::class])
-@Singleton
-interface StorageComponent {
-  fun database(): Single<SQLiteDatabase>
-  fun kvstore(): KVStore
+object Jobs {
+  const val SAVE_DEVICE_ID = 1024
+  const val SAFETY_NET_ATTESTATION_ID = 2048
+
+  fun schedule(context: Context, job: JobInfo) {
+    context.getSystemService(JobScheduler::class.java).also { scheduler ->
+      scheduler.schedule(job)
+    }
+  }
 }

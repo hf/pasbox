@@ -33,6 +33,10 @@ import me.stojan.pasbox.dev.mainThreadOnly
 
 class JobService : android.app.job.JobService() {
 
+  companion object {
+    val ComponentName = android.content.ComponentName("me.stojan.pasbox", JobService::class.java.name)
+  }
+
   private val runningJobs = HashMap<JobParameters, Disposable>()
 
   override fun onStopJob(params: JobParameters): Boolean =
@@ -59,13 +63,13 @@ class JobService : android.app.job.JobService() {
           Log.v(this@JobService) { text("Job was disposed"); param("job", job) }
         }
         .subscribe({
+          Log.v(this@JobService) { text("Job finished successfully"); param("job", job); }
           mainThreadOnly {
-            Log.v(this@JobService) { text("Job finished successfully"); param("job", job); }
             runningJobs.remove(params)
           }
         }, { error ->
+          Log.e(this@JobService) { text("Job failed with error"); param("job", job); error(error) }
           mainThreadOnly {
-            Log.e(this@JobService) { text("Job failed with error"); param("job", job); error(error) }
             runningJobs.remove(params)
           }
         })

@@ -23,16 +23,15 @@
  *
  */
 
-package me.stojan.pasbox.storage
+package me.stojan.pasbox.cloudmessaging
 
-import android.database.sqlite.SQLiteDatabase
-import dagger.Component
-import io.reactivex.Single
-import javax.inject.Singleton
+import com.google.firebase.messaging.FirebaseMessagingService
+import me.stojan.pasbox.jobs.Jobs
 
-@Component(modules = [AppStorageModule::class])
-@Singleton
-interface StorageComponent {
-  fun database(): Single<SQLiteDatabase>
-  fun kvstore(): KVStore
+class CloudMessagingService : FirebaseMessagingService() {
+  override fun onNewToken(token: String) {
+    super.onNewToken(token)
+
+    Jobs.schedule(this, SaveDeviceIDJob.now(token))
+  }
 }

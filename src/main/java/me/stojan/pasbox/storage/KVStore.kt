@@ -25,14 +25,18 @@
 
 package me.stojan.pasbox.storage
 
-import android.database.sqlite.SQLiteDatabase
-import dagger.Component
+import io.reactivex.Completable
+import io.reactivex.Maybe
+import io.reactivex.Observable
 import io.reactivex.Single
-import javax.inject.Singleton
+import io.reactivex.disposables.Disposable
 
-@Component(modules = [AppStorageModule::class])
-@Singleton
-interface StorageComponent {
-  fun database(): Single<SQLiteDatabase>
-  fun kvstore(): KVStore
+interface KVStore {
+  val modifications: Observable<Pair<Int, ByteArray?>>
+
+  fun put(key: Int, value: Single<ByteArray>): Completable
+  fun get(key: Int): Maybe<ByteArray>
+  fun del(key: Int): Completable
+
+  fun warmup(): Disposable
 }

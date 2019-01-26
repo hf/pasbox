@@ -25,8 +25,14 @@
 
 package me.stojan.pasbox
 
+import me.stojan.pasbox.json.JSONComponent
 import me.stojan.pasbox.storage.StorageComponent
 
 interface AppComponents {
   val Storage: StorageComponent
+  val JSON: JSONComponent
+}
+
+interface HasComponents {
+  val components: AppComponents
 }

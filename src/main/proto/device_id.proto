@@ -1,0 +1,9 @@
+syntax = "proto3";
+
+option java_multiple_files = true;
+option java_package = "me.stojan.pasbox.cloudmessaging";
+
+message DeviceID {
+  string current_id = 1;
+  repeated string previous_ids = 2;
+}
