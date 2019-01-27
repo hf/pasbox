@@ -24,54 +24,41 @@
   ~
   -->
 
-<androidx.drawerlayout.widget.DrawerLayout
+<com.google.android.material.card.MaterialCardView
   xmlns:android="http://schemas.android.com/apk/res/android"
   xmlns:app="http://schemas.android.com/apk/res-auto"
-  android:id="@+id/navigation_drawer"
   android:layout_width="match_parent"
-  android:layout_height="match_parent"
+  android:layout_height="wrap_content"
+  android:layout_marginTop="@dimen/marginVertical"
+  android:layout_marginBottom="@dimen/marginVertical"
+  android:layout_marginLeft="@dimen/marginHorizontal"
+  android:layout_marginRight="@dimen/marginHorizontal"
+  app:contentPaddingTop="@dimen/cardPaddingVertical"
+  app:contentPaddingBottom="@dimen/cardPaddingVertical"
+  app:contentPaddingLeft="@dimen/cardPaddingHorizontal"
+  app:contentPaddingRight="@dimen/cardPaddingHorizontal"
   >
 
-  <androidx.coordinatorlayout.widget.CoordinatorLayout
+  <LinearLayout
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
     >
 
-    <androidx.core.widget.NestedScrollView
-      android:id="@+id/content"
-      android:layout_width="match_parent"
-      android:layout_height="match_parent"
-      app:layout_behavior="@string/appbar_scrolling_view_behavior"
-      >
-
-      <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/recycler"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        />
-    </androidx.core.widget.NestedScrollView>
-
-    <com.google.android.material.appbar.AppBarLayout
+    <TextView
       android:layout_width="match_parent"
       android:layout_height="wrap_content"
-      >
-
-      <androidx.appcompat.widget.Toolbar
-        android:id="@+id/toolbar"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        app:layout_scrollFlags="enterAlways"
-        />
-
-    </com.google.android.material.appbar.AppBarLayout>
-
-    <com.google.android.material.floatingactionbutton.FloatingActionButton
-      android:id="@+id/floating_action"
-      android:visibility="gone"
-      android:layout_width="wrap_content"
-      android:layout_height="wrap_content"
-      android:layout_gravity="bottom|end"
+      android:text="@string/fingerprint_not_setup"
       />
 
-  </androidx.coordinatorlayout.widget.CoordinatorLayout>
-</androidx.drawerlayout.widget.DrawerLayout>
+    <com.google.android.material.button.MaterialButton
+      android:id="@+id/resolve_error"
+      android:layout_width="wrap_content"
+      android:layout_height="wrap_content"
+      android:layout_gravity="end"
+      android:layout_marginTop="@dimen/marginVertical"
+      android:text="@string/setup_fingerprint"
+      />
+  </LinearLayout>
+
+</com.google.android.material.card.MaterialCardView>

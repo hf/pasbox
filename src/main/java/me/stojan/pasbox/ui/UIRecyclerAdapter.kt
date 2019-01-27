@@ -57,7 +57,7 @@ class UIRecyclerAdapter(val activity: UIActivity) : RecyclerView.Adapter<UIRecyc
     }
   }
 
-  private val topviews = ArrayList<Pair<Int, ((View) -> Unit)?>>(2)
+  private val topviews = ArrayList<Pair<Int, ((View) -> Unit)?>>(5)
 
   override fun getItemViewType(position: Int): Int =
     if (position < topviews.size) {
@@ -75,6 +75,22 @@ class UIRecyclerAdapter(val activity: UIActivity) : RecyclerView.Adapter<UIRecyc
           if (index < 0) {
             topviews.add(Pair(layout, bind))
             notifyItemInserted(topviews.size - 1)
+          }
+        }
+    }
+  }
+
+  fun presentTopImportant(layout: Int, bind: ((View) -> Unit)? = null) {
+    mainThreadOnly {
+      topviews.indexOfFirst { layout == it.first }
+        .let { index ->
+          if (index < 0) {
+            topviews.add(0, Pair(layout, bind))
+            notifyItemInserted(0)
+          } else {
+            topviews.removeAt(index)
+            topviews.add(0, Pair(layout, bind))
+            notifyItemMoved(index, 0)
           }
         }
     }

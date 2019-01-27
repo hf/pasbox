@@ -25,7 +25,12 @@
 
 package me.stojan.pasbox.ui
 
+import android.app.KeyguardManager
+import android.content.Intent
+import android.hardware.fingerprint.FingerprintManager
+import android.os.Build
 import android.os.Bundle
+import android.provider.Settings
 import android.view.View
 import android.widget.Button
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -62,6 +67,7 @@ class UIActivity(val app: App = App.Current) : AppActivity() {
     super.onResume()
 
     observeGooglePlayServices()
+    observeKeyguard()
     observeSafetyNet()
   }
 
@@ -129,12 +135,50 @@ class UIActivity(val app: App = App.Current) : AppActivity() {
         mainThreadOnly {
           if (!attestation.ctsProfileMatch) {
             Log.v(this@UIActivity) { text("Insecure device detected") }
-            adapter.presentTop(R.layout.card_insecure_device)
+            adapter.presentTopImportant(R.layout.card_insecure_device)
           } else {
             adapter.dismissTop(R.layout.card_insecure_device)
           }
         }
       }
     )
+  }
+
+  private fun observeKeyguard() {
+    getSystemService(KeyguardManager::class.java).let { keyguard ->
+      if (!keyguard.isDeviceSecure) {
+        adapter.presentTop(R.layout.card_setup_keyguard) {
+          val button: Button = it.findViewById(R.id.resolve_error)
+          button.setOnClickListener { startActivity(Intent(Settings.ACTION_SECURITY_SETTINGS)) }
+        }
+      } else {
+        adapter.dismissTop(R.layout.card_setup_keyguard)
+
+        getSystemService(FingerprintManager::class.java).let { fingerprints ->
+          if (fingerprints.isHardwareDetected) {
+            if (!fingerprints.hasEnrolledFingerprints()) {
+              adapter.presentTop(R.layout.card_setup_fingerprint) {
+                val button: Button = it.findViewById(R.id.resolve_error)
+                button.setOnClickListener {
+                  startActivity(
+                    Intent(
+                      if (Build.VERSION.SDK_INT >= 28) {
+                        Settings.ACTION_FINGERPRINT_ENROLL
+                      } else {
+                        Settings.ACTION_SECURITY_SETTINGS
+                      }
+                    )
+                  )
+                }
+              }
+            } else {
+              adapter.dismissTop(R.layout.card_setup_fingerprint)
+            }
+          } else {
+            adapter.dismissTop(R.layout.card_setup_fingerprint)
+          }
+        }
+      }
+    }
   }
 }

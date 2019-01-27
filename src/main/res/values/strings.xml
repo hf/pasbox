@@ -43,4 +43,12 @@
 
   <string name="updating_google_play_services">Your device is updating Google Play Services and until that has finished
     you\'ll have limited options to use Pasbox.</string>
+
+  <string name="setup_keyguard">Secure Device</string>
+  <string name="keyguard_not_setup">Your device is not secured by PIN/Pattern/Password/Fingerprint. Although you can
+    continue to use Pasbox, we strongly recommend you secure your device.</string>
+
+  <string name="setup_fingerprint">Setup Fingerprint</string>
+  <string name="fingerprint_not_setup">Your device supports fingerprinting, so we suggest you set it up. This will make
+    it much harder for anyone to impersonate you.</string>
 </resources>
