@@ -28,14 +28,29 @@ package me.stojan.pasbox.jobs
 import android.app.job.JobInfo
 import android.app.job.JobScheduler
 import android.content.Context
+import me.stojan.pasbox.BuildConfig
+import me.stojan.pasbox.dev.Log
 
 object Jobs {
   const val SAVE_DEVICE_ID = 1024
   const val SAFETY_NET_ATTESTATION_ID = 2048
+  const val SAFETY_NET_ATTESTATION_PERIODIC_ID = 2049
 
   fun schedule(context: Context, job: JobInfo) {
     context.getSystemService(JobScheduler::class.java).also { scheduler ->
-      scheduler.schedule(job)
+      if (BuildConfig.DEBUG) {
+        scheduler.allPendingJobs.find { it.id == job.id }
+          ?.let { existingJob ->
+            Log.w(this@Jobs) { text("Job already info"); param("job", job) }
+          }
+      }
+
+      scheduler.schedule(job).let { result ->
+        if (JobScheduler.RESULT_FAILURE == result) {
+          throw RuntimeException("Unable to schedule Job with id=${job.id}")
+        }
+      }
     }
   }
+
 }

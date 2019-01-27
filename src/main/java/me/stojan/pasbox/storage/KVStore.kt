@@ -38,5 +38,7 @@ interface KVStore {
   fun get(key: Int): Maybe<ByteArray>
   fun del(key: Int): Completable
 
+  fun watch(key: Int, nulls: Boolean = true, get: Boolean = true): Observable<Pair<Int, ByteArray?>>
+
   fun warmup(): Disposable
 }

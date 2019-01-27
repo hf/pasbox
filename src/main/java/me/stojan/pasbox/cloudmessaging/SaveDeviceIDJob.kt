@@ -64,8 +64,7 @@ object SaveDeviceIDJob : Job {
           }
         }).subscribeOn(Schedulers.newThread())
 
-
-  fun now(token: String): JobInfo = JobInfo.Builder(id, JobService.ComponentName)
+  fun info(token: String): JobInfo = JobInfo.Builder(id, JobService.ComponentName)
     .setOverrideDeadline(1000)
     .setExtras(PersistableBundle(1).apply {
       putString(TOKEN, token)

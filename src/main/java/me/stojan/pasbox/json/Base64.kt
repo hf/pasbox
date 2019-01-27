@@ -35,9 +35,18 @@ annotation class Base64
 
 class Base64Adapter {
   @ToJson
-  fun toJson(@Base64 bytes: ByteArray) = android.util.Base64.encode(bytes, 0)
+  fun toJson(@Base64 bytes: ByteArray) = android.util.Base64.encodeToString(bytes, 0)
 
   @FromJson
   @Base64
   fun fromJson(base64: String) = android.util.Base64.decode(base64, 0)
+
+  @ToJson
+  fun toJson(@Base64 arrays: Array<ByteArray?>): Array<String?> =
+    Array(arrays.size) { i -> android.util.Base64.encodeToString(arrays[i], 0) }
+
+  @FromJson
+  @Base64
+  fun fromJson(arrays: Array<String?>): Array<ByteArray?> =
+    Array(arrays.size) { i -> android.util.Base64.decode(arrays[i], 0) }
 }

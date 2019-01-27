@@ -27,7 +27,8 @@ package me.stojan.pasbox.jobs
 
 import android.util.SparseArray
 import me.stojan.pasbox.cloudmessaging.SaveDeviceIDJob
-import me.stojan.pasbox.safetynet.SafetyNetAttestationJob
+import me.stojan.pasbox.safetynet.SafetyNetAttestationJobASAP
+import me.stojan.pasbox.safetynet.SafetyNetAttestationJobScheduled
 
 object JobRegistry {
   private val map = SparseArray<Job>()
@@ -35,7 +36,8 @@ object JobRegistry {
   init {
     // register all jobs here
     register(SaveDeviceIDJob)
-    register(SafetyNetAttestationJob)
+    register(SafetyNetAttestationJobASAP)
+    register(SafetyNetAttestationJobScheduled)
   }
 
   private fun register(job: Job) {

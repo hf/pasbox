@@ -42,7 +42,7 @@ import me.stojan.pasbox.dev.workerThreadOnly
 import java.security.KeyStore
 import javax.crypto.Cipher
 import javax.crypto.KeyGenerator
-import javax.crypto.spec.IvParameterSpec
+import javax.crypto.spec.GCMParameterSpec
 
 class SQLiteKVStore(db: Single<SQLiteDatabase>) : KVStore {
 
@@ -67,6 +67,7 @@ class SQLiteKVStore(db: Single<SQLiteDatabase>) : KVStore {
                   )
                     .setKeySize(256)
                     .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
+                    .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
                     .setRandomizedEncryptionRequired(true)
                     .build()
                 )
@@ -107,6 +108,7 @@ class SQLiteKVStore(db: Single<SQLiteDatabase>) : KVStore {
 
                 bindBlob(2, Cipher.getInstance("AES/GCM/NoPadding").run {
                   init(Cipher.ENCRYPT_MODE, dbKey)
+                  parameters
                   SQLiteKVStoreValue.newBuilder()
                     .setAesGcmIv(iv!!.toByteString())
                     .setAesGcmCiphertext(doFinal(bytes).toByteString())
@@ -141,19 +143,28 @@ class SQLiteKVStore(db: Single<SQLiteDatabase>) : KVStore {
                   SQLiteKVStoreValue.parseFrom(value.toByteString())
                     .let { value ->
                       Cipher.getInstance("AES/GCM/NoPadding").run {
-                        init(Cipher.DECRYPT_MODE, dbKey, IvParameterSpec(value.aesGcmIv.toByteArray()))
+                        init(Cipher.DECRYPT_MODE, dbKey, GCMParameterSpec(128, value.aesGcmIv.toByteArray()))
                         doFinal(value.aesGcmCiphertext.toByteArray())
                       }
                     }
                 }
               }
             }
-            .also {
-              changes.onNext(Pair(key, it))
-            }
         }
       }
     }.subscribeOn(Schedulers.io())
+
+  override fun watch(key: Int, nulls: Boolean, get: Boolean): Observable<Pair<Int, ByteArray?>> =
+    if (get) {
+      this.get(key)
+        .map { Pair<Int, ByteArray?>(key, it) }
+        .switchIfEmpty(Maybe.just(Pair(key, null)))
+        .toObservable()
+    } else {
+      Observable.empty()
+    }
+      .mergeWith(modifications.observeOn(Schedulers.computation()))
+      .filter { workerThreadOnly { key == it.first && (null != it.second || nulls) } }
 
   override fun del(key: Int): Completable =
     db.flatMapCompletable { (db, _) ->

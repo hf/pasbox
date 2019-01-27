@@ -26,6 +26,21 @@
 <resources>
   <string name="app_name">Pasbox</string>
 
-  <string name="setup_welcome">Welcome to Pasbox, a different kind of password manager.</string>
-  <string name="setup_in_progress">We\'re setting up your phone as we speak…</string>
+  <string name="install">Install</string>
+  <string name="update">Update</string>
+
+  <string name="insecure_device">We\'ve detected that your device is not secure. Pasbox can\'t guarantee the safety of
+    your passwords stored on this device and you will not be able to use our online services. You may use Pasbox only
+    on this device if you wish.</string>
+
+  <string name="missing_google_play_services">Google Play Services are not installed on this device. Pasbox needs them
+    to guarantee the safety of your passwords. You will not be able to use our online services, but you may continue
+    using Pasbox only on this device.</string>
+
+  <string name="old_google_play_services">Your device has an old version of Google Play Services. Pasbox requires the
+    latest version of Google Play Services to guarantee the safety of your passwords. You will not be able to use our
+    online services until you update Google Play Services. You may continue to use Pasbox only on this device.</string>
+
+  <string name="updating_google_play_services">Your device is updating Google Play Services and until that has finished
+    you\'ll have limited options to use Pasbox.</string>
 </resources>

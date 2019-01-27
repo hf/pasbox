@@ -26,9 +26,13 @@
 package me.stojan.pasbox
 
 import android.app.Application
+import io.reactivex.android.schedulers.AndroidSchedulers
+import io.reactivex.disposables.CompositeDisposable
 import me.stojan.pasbox.dev.Log
 import me.stojan.pasbox.jobs.Jobs
-import me.stojan.pasbox.safetynet.SafetyNetAttestationJob
+import me.stojan.pasbox.safetynet.SafetyNetAttestationJobASAP
+import me.stojan.pasbox.safetynet.SafetyNetAttestationJobScheduled
+import me.stojan.pasbox.storage.KV
 
 class App : Application(), HasComponents {
   companion object {
@@ -38,6 +42,7 @@ class App : Application(), HasComponents {
     val Components: AppComponents get() = INSTANCE.components
   }
 
+  private val disposables = CompositeDisposable()
   private lateinit var _components: AppComponents
 
   override val components: AppComponents get() = _components
@@ -54,10 +59,19 @@ class App : Application(), HasComponents {
   }
 
   private fun warmup() {
-    components.Storage.kvstore().warmup()
+    disposables.add(components.Storage.kvstore().warmup())
   }
 
   private fun startup() {
-    Jobs.schedule(this, SafetyNetAttestationJob.asap)
+    Jobs.schedule(this@App, SafetyNetAttestationJobScheduled.info)
+
+    disposables.add(components.Storage.kvstore().warmup())
+    disposables.add(
+      components.Storage.kvstore().watch(KV.DEVICE_ID, nulls = false, get = false).observeOn(
+        AndroidSchedulers.mainThread()
+      ).subscribe {
+        Log.v(this@App) { text("Device ID was updated, scheduling SafetyNet attestation") }
+        Jobs.schedule(this@App, SafetyNetAttestationJobASAP.info)
+      })
   }
 }

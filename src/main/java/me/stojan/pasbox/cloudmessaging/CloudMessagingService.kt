@@ -32,6 +32,6 @@ class CloudMessagingService : FirebaseMessagingService() {
   override fun onNewToken(token: String) {
     super.onNewToken(token)
 
-    Jobs.schedule(this, SaveDeviceIDJob.now(token))
+    Jobs.schedule(this, SaveDeviceIDJob.info(token))
   }
 }

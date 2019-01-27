@@ -25,11 +25,10 @@
   -->
 
 <resources>
-  <color name="colorPrimary">#008577</color>
-  <color name="colorPrimaryDark">#00574B</color>
-  <color name="colorAccent">#D81B60</color>
 
-  <color name="dangerBackground">#FFA68B</color>
-  <color name="dangerForeground">#1B0C04</color>
+  <dimen name="marginVertical">16dp</dimen>
+  <dimen name="marginHorizontal">16dp</dimen>
 
+  <dimen name="cardPaddingVertical">16dp</dimen>
+  <dimen name="cardPaddingHorizontal">16dp</dimen>
 </resources>

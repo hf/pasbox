@@ -28,6 +28,7 @@ package me.stojan.pasbox.safetynet
 import android.app.job.JobInfo
 import android.app.job.JobParameters
 import android.content.Context
+import android.os.Build
 import android.util.Base64
 import com.google.android.gms.safetynet.SafetyNet
 import com.google.protobuf.toByteString
@@ -35,6 +36,7 @@ import com.squareup.moshi.JsonAdapter
 import io.reactivex.Single
 import me.stojan.pasbox.APIKeys
 import me.stojan.pasbox.App
+import me.stojan.pasbox.BuildConfig
 import me.stojan.pasbox.cloudmessaging.DeviceID
 import me.stojan.pasbox.dev.Log
 import me.stojan.pasbox.dev.toMaybe
@@ -45,8 +47,7 @@ import me.stojan.pasbox.jobs.Jobs
 import me.stojan.pasbox.signature.DeviceSignature
 import me.stojan.pasbox.storage.KV
 
-object SafetyNetAttestationJob : Job {
-  override val id: Int = Jobs.SAFETY_NET_ATTESTATION_ID
+abstract class SafetyNetAttestationJob : Job {
 
   override fun run(context: Context, params: JobParameters) =
     App.Components.Storage.kvstore().get(KV.DEVICE_ID)
@@ -69,12 +70,7 @@ object SafetyNetAttestationJob : Job {
       .flatMapCompletable { App.Components.Storage.kvstore().put(KV.SAFETY_NET_ATTESTATION, Single.just(it)) }
 
 
-  val asap: JobInfo
-    get() = JobInfo.Builder(id, JobService.ComponentName)
-      .setRequiredNetworkType(JobInfo.NETWORK_TYPE_ANY)
-      .build()
-
-  internal fun parseAttestation(jws: String, adapter: JsonAdapter<Attestation>) =
+  private fun parseAttestation(jws: String, adapter: JsonAdapter<Attestation>) =
     jws.let {
       val attestation = jws.split('.').map { part -> Base64.decode(part, Base64.URL_SAFE) }
         .let { parts ->
@@ -87,18 +83,42 @@ object SafetyNetAttestationJob : Job {
         .setNonce(attestation.nonce)
         .setApkDigestSha256(Base64.decode(attestation.apkDigestSha256, Base64.DEFAULT).toByteString())
         .setApkPackageName(attestation.apkPackageName)
-        .setApkCertificateDigestSha256(attestation.apkCertificateDigestSha256?.let { digests ->
-          digests[0]?.let { digest ->
-            Base64.decode(
-              digest,
-              Base64.DEFAULT
-            ).toByteString()
-          }
-        })
+        .setApkCertificateDigestSha256(attestation.apkCertificateDigestSha256?.let { it[0]?.toByteString() })
         .setCtsProfileMatch(attestation.ctsProfileMatch)
         .setBasicIntegrity(attestation.basicIntegrity)
         .setAdvice(attestation.advice)
         .build()
         .toByteArray()
     }
+}
+
+object SafetyNetAttestationJobASAP : SafetyNetAttestationJob() {
+  override val id: Int = Jobs.SAFETY_NET_ATTESTATION_ID
+
+  val info: JobInfo
+    get() = JobInfo.Builder(id, JobService.ComponentName)
+      .setRequiredNetworkType(JobInfo.NETWORK_TYPE_ANY)
+      .apply {
+        if (Build.VERSION.SDK_INT >= 28) {
+          setImportantWhileForeground(true)
+        }
+      }
+      .build()
+}
+
+object SafetyNetAttestationJobScheduled : SafetyNetAttestationJob() {
+  override val id: Int = Jobs.SAFETY_NET_ATTESTATION_PERIODIC_ID
+
+  val info: JobInfo
+    get() = JobInfo.Builder(id, JobService.ComponentName)
+      .setRequiredNetworkType(JobInfo.NETWORK_TYPE_ANY)
+      .setPersisted(true)
+      .setPeriodic(
+        60L * 60L * 1000L * (if (BuildConfig.DEBUG) {
+          1L
+        } else {
+          2L * 24L
+        })
+      )
+      .build()
 }
