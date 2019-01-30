@@ -30,7 +30,6 @@ import io.reactivex.android.schedulers.AndroidSchedulers
 import io.reactivex.disposables.CompositeDisposable
 import me.stojan.pasbox.dev.Log
 import me.stojan.pasbox.jobs.Jobs
-import me.stojan.pasbox.safetynet.SafetyNetAttestationJobASAP
 import me.stojan.pasbox.safetynet.SafetyNetAttestationJobScheduled
 import me.stojan.pasbox.storage.KV
 
@@ -63,15 +62,13 @@ class App : Application(), HasComponents {
   }
 
   private fun startup() {
-    Jobs.schedule(this@App, SafetyNetAttestationJobScheduled.info)
-
     disposables.add(components.Storage.kvstore().warmup())
     disposables.add(
       components.Storage.kvstore().watch(KV.DEVICE_ID, nulls = false, get = false).observeOn(
         AndroidSchedulers.mainThread()
       ).subscribe {
         Log.v(this@App) { text("Device ID was updated, scheduling SafetyNet attestation") }
-        Jobs.schedule(this@App, SafetyNetAttestationJobASAP.info)
+        Jobs.schedule(this@App, SafetyNetAttestationJobScheduled.info)
       })
   }
 }

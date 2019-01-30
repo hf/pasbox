@@ -68,17 +68,19 @@ class UIRecyclerAdapter(val activity: UIActivity) : RecyclerView.Adapter<UIRecyc
 
   override fun getItemCount(): Int = 0 + topviews.size
 
-  fun presentTop(layout: Int, bind: ((View) -> Unit)? = null) {
+  fun presentTop(layout: Int, bind: ((View) -> Unit)? = null): Int =
     mainThreadOnly {
       topviews.indexOfFirst { layout == it.first }
         .let { index ->
           if (index < 0) {
             topviews.add(Pair(layout, bind))
             notifyItemInserted(topviews.size - 1)
+            topviews.size - 1
+          } else {
+            index
           }
         }
     }
-  }
 
   fun presentTopImportant(layout: Int, bind: ((View) -> Unit)? = null) {
     mainThreadOnly {

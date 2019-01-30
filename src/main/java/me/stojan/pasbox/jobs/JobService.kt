@@ -74,6 +74,8 @@ class JobService : android.app.job.JobService() {
           }
         })
 
+      Log.v(this@JobService) { text("Job running"); param("job", job); }
+
       true
     }
 

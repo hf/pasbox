@@ -41,7 +41,7 @@ object Jobs {
       if (BuildConfig.DEBUG) {
         scheduler.allPendingJobs.find { it.id == job.id }
           ?.let { existingJob ->
-            Log.w(this@Jobs) { text("Job already info"); param("job", job) }
+            Log.w(this@Jobs) { text("Job already scheduled"); param("job", existingJob) }
           }
       }
 

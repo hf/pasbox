@@ -69,6 +69,8 @@ class UIActivity(val app: App = App.Current) : AppActivity() {
     observeGooglePlayServices()
     observeKeyguard()
     observeSafetyNet()
+
+    activateFAB()
   }
 
   private fun observeGooglePlayServices() {
@@ -117,6 +119,9 @@ class UIActivity(val app: App = App.Current) : AppActivity() {
 
             ConnectionResult.SERVICE_UPDATING -> {
               adapter.presentTop(R.layout.card_updating_google_play_services)
+            }
+
+            else -> {
             }
           }
         }
@@ -180,5 +185,9 @@ class UIActivity(val app: App = App.Current) : AppActivity() {
         }
       }
     }
+  }
+
+  fun activateFAB() {
+
   }
 }

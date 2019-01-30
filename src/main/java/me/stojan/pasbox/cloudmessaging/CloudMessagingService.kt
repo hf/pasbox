@@ -26,11 +26,14 @@
 package me.stojan.pasbox.cloudmessaging
 
 import com.google.firebase.messaging.FirebaseMessagingService
+import me.stojan.pasbox.dev.Log
 import me.stojan.pasbox.jobs.Jobs
 
 class CloudMessagingService : FirebaseMessagingService() {
   override fun onNewToken(token: String) {
     super.onNewToken(token)
+
+    Log.d(this@CloudMessagingService) { text("Device ID has changed") }
 
     Jobs.schedule(this, SaveDeviceIDJob.info(token))
   }
