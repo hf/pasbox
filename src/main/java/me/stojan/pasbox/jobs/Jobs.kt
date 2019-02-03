@@ -28,13 +28,21 @@ package me.stojan.pasbox.jobs
 import android.app.job.JobInfo
 import android.app.job.JobScheduler
 import android.content.Context
+import io.reactivex.Completable
+import io.reactivex.subjects.PublishSubject
 import me.stojan.pasbox.BuildConfig
 import me.stojan.pasbox.dev.Log
+import me.stojan.pasbox.dev.mainThreadOnly
+import java.util.concurrent.atomic.AtomicInteger
 
 object Jobs {
   const val SAVE_DEVICE_ID = 1024
   const val SAFETY_NET_ATTESTATION_ID = 2048
   const val SAFETY_NET_ATTESTATION_PERIODIC_ID = 2049
+
+  const val DYNAMIC_JOBS_FROM = 1_000_000
+
+  val dynamic = ArrayList<Completable?>(5)
 
   fun schedule(context: Context, job: JobInfo) {
     context.getSystemService(JobScheduler::class.java).also { scheduler ->
@@ -49,6 +57,52 @@ object Jobs {
         if (JobScheduler.RESULT_FAILURE == result) {
           throw RuntimeException("Unable to schedule Job with id=${job.id}")
         }
+      }
+    }
+  }
+
+  inline fun schedule(
+    context: Context,
+    completable: Completable,
+    builderFn: JobInfo.Builder.() -> Unit
+  ): Pair<Int, Completable> =
+    mainThreadOnly {
+      val uniqueId = AtomicInteger(DYNAMIC_JOBS_FROM)
+
+      val workObserver = PublishSubject.create<Any>()
+
+      val work = completable
+        .doOnComplete {
+          workObserver.onComplete()
+          cleanupDynamic(uniqueId.get())
+        }
+        .doOnError {
+          workObserver.onError(it)
+          cleanupDynamic(uniqueId.get())
+        }
+        .doOnDispose {
+          cleanupDynamic(uniqueId.get())
+        }
+
+      synchronized(dynamic) {
+        dynamic.add(work)
+        uniqueId.getAndAdd(dynamic.size - 1)
+      }
+
+      schedule(
+        context, JobInfo.Builder(uniqueId.get(), JobService.ComponentName)
+          .also(builderFn)
+          .build()
+      )
+
+      Pair(uniqueId.get(), workObserver.ignoreElements())
+    }
+
+  inline fun cleanupDynamic(id: Int) {
+    synchronized(dynamic) {
+      dynamic[id - DYNAMIC_JOBS_FROM] = null
+      while (dynamic.size > 0 && null == dynamic[dynamic.size - 1]) {
+        dynamic.removeAt(dynamic.size - 1)
       }
     }
   }

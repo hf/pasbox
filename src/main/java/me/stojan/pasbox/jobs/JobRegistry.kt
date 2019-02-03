@@ -25,10 +25,19 @@
 
 package me.stojan.pasbox.jobs
 
+import android.app.job.JobParameters
+import android.content.Context
 import android.util.SparseArray
+import io.reactivex.Completable
 import me.stojan.pasbox.cloudmessaging.SaveDeviceIDJob
 import me.stojan.pasbox.safetynet.SafetyNetAttestationJobASAP
 import me.stojan.pasbox.safetynet.SafetyNetAttestationJobScheduled
+
+data class DynamicJob(override val id: Int) : Job {
+  override fun run(context: Context, params: JobParameters): Completable = synchronized(Jobs.dynamic) {
+    Jobs.dynamic[id - Jobs.DYNAMIC_JOBS_FROM]!!
+  }
+}
 
 object JobRegistry {
   private val map = SparseArray<Job>()
@@ -49,6 +58,10 @@ object JobRegistry {
   }
 
   fun findForId(id: Int): Job {
+    if (id >= Jobs.DYNAMIC_JOBS_FROM) {
+      return DynamicJob(id)
+    }
+
     val job = map.get(id)
 
     if (null == job) {

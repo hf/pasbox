@@ -47,20 +47,25 @@ import me.stojan.pasbox.dev.toMaybe
 import me.stojan.pasbox.dev.workerThreadOnly
 import me.stojan.pasbox.safetynet.SafetyNetAttestation
 import me.stojan.pasbox.storage.KV
+import me.stojan.pasbox.storage.SecretStore
 
 class UIActivity(val app: App = App.Current) : AppActivity() {
 
   private lateinit var layoutManager: LinearLayoutManager
   private lateinit var adapter: UIRecyclerAdapter
 
+  private var coldStart = true
+
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
 
     layoutManager = LinearLayoutManager(this)
-    adapter = UIRecyclerAdapter(this)
-
     recycler.layoutManager = layoutManager
-    recycler.adapter = adapter
+
+    adapter = UIRecyclerAdapter(this)
+    adapter.mount(recycler)
+
+    coldStart = true
   }
 
   override fun onResume() {
@@ -69,8 +74,11 @@ class UIActivity(val app: App = App.Current) : AppActivity() {
     observeGooglePlayServices()
     observeKeyguard()
     observeSafetyNet()
+    observeSecrets()
 
     activateFAB()
+
+    coldStart = false
   }
 
   private fun observeGooglePlayServices() {
@@ -83,7 +91,7 @@ class UIActivity(val app: App = App.Current) : AppActivity() {
 
           when (result) {
             ConnectionResult.SERVICE_DISABLED, ConnectionResult.SERVICE_INVALID, ConnectionResult.SERVICE_MISSING -> {
-              adapter.presentTop(R.layout.card_missing_google_play_services) {
+              adapter.presentTop(UIRecyclerAdapter.Top.simple(R.layout.card_missing_google_play_services) {
                 val button: Button = it.findViewById(R.id.resolve_error)
 
                 if (googleApi.isUserResolvableError(result)) {
@@ -97,11 +105,11 @@ class UIActivity(val app: App = App.Current) : AppActivity() {
                 } else {
                   button.visibility = View.GONE
                 }
-              }
+              })
             }
 
             ConnectionResult.SERVICE_VERSION_UPDATE_REQUIRED -> {
-              adapter.presentTop(R.layout.card_old_google_play_services) {
+              adapter.presentTop(UIRecyclerAdapter.Top.simple(R.layout.card_old_google_play_services) {
                 val button: Button = it.findViewById(R.id.resolve_error)
 
                 if (googleApi.isUserResolvableError(result)) {
@@ -114,11 +122,11 @@ class UIActivity(val app: App = App.Current) : AppActivity() {
                 } else {
                   button.visibility = View.GONE
                 }
-              }
+              })
             }
 
             ConnectionResult.SERVICE_UPDATING -> {
-              adapter.presentTop(R.layout.card_updating_google_play_services)
+              adapter.presentTop(UIRecyclerAdapter.Top.simple(R.layout.card_updating_google_play_services))
             }
 
             else -> {
@@ -140,7 +148,7 @@ class UIActivity(val app: App = App.Current) : AppActivity() {
         mainThreadOnly {
           if (!attestation.ctsProfileMatch) {
             Log.v(this@UIActivity) { text("Insecure device detected") }
-            adapter.presentTopImportant(R.layout.card_insecure_device)
+            adapter.presentTopImportant(UIRecyclerAdapter.Top.simple(R.layout.card_insecure_device))
           } else {
             adapter.dismissTop(R.layout.card_insecure_device)
           }
@@ -152,17 +160,17 @@ class UIActivity(val app: App = App.Current) : AppActivity() {
   private fun observeKeyguard() {
     getSystemService(KeyguardManager::class.java).let { keyguard ->
       if (!keyguard.isDeviceSecure) {
-        adapter.presentTop(R.layout.card_setup_keyguard) {
+        adapter.presentTop(UIRecyclerAdapter.Top.simple(R.layout.card_setup_keyguard) {
           val button: Button = it.findViewById(R.id.resolve_error)
           button.setOnClickListener { startActivity(Intent(Settings.ACTION_SECURITY_SETTINGS)) }
-        }
+        })
       } else {
         adapter.dismissTop(R.layout.card_setup_keyguard)
 
         getSystemService(FingerprintManager::class.java).let { fingerprints ->
           if (fingerprints.isHardwareDetected) {
             if (!fingerprints.hasEnrolledFingerprints()) {
-              adapter.presentTop(R.layout.card_setup_fingerprint) {
+              adapter.presentTop(UIRecyclerAdapter.Top.simple(R.layout.card_setup_fingerprint) {
                 val button: Button = it.findViewById(R.id.resolve_error)
                 button.setOnClickListener {
                   startActivity(
@@ -175,7 +183,7 @@ class UIActivity(val app: App = App.Current) : AppActivity() {
                     )
                   )
                 }
-              }
+              })
             } else {
               adapter.dismissTop(R.layout.card_setup_fingerprint)
             }
@@ -187,7 +195,59 @@ class UIActivity(val app: App = App.Current) : AppActivity() {
     }
   }
 
-  fun activateFAB() {
+  private fun activateFAB() {
+    floatingAction.show()
+    floatingAction.setOnClickListener {
+      floatingAction.hide()
+      adapter.presentTopImportant(object : UIRecyclerAdapter.Top {
+        override val layout: Int = R.layout.card_create_secret
+        override val swipable: Boolean = true
 
+        override fun onBound(view: View) {
+          (view as UICreateSecret).reset()
+          view.onDone = {
+            Log.v(this@UIActivity) { text("Done") }
+            adapter.dismissTop(layout)
+          }
+        }
+
+        override fun onSwiped(view: View, direction: Int) {
+          adapter.dismissTop(layout)
+          floatingAction.show()
+        }
+      })
+    }
+
+  }
+
+  private fun observeSecrets() {
+    if (coldStart) {
+      disposeOnPause(App.Components.Storage.secrets().page(SecretStore.Query(0, 100))
+        .observeOn(AndroidSchedulers.mainThread())
+        .subscribe { page ->
+          if (page.count > 0) {
+            adapter.append(page)
+          }
+        })
+    }
+
+    disposeOnPause(App.Components.Storage.secrets().modifications
+      .flatMapSingle {
+        Log.v(this@UIActivity) { text("Modification detected") }
+        App.Components.Storage.secrets().page(
+          SecretStore.Query(
+            0,
+            100
+          )
+        )
+      }
+      .observeOn(AndroidSchedulers.mainThread())
+      .subscribe { page ->
+        if (page.count > 0) {
+          adapter.append(page, true)
+        }
+
+      }
+    )
   }
 }

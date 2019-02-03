@@ -26,6 +26,8 @@
 <resources>
   <string name="app_name">Pasbox</string>
 
+  <string name="cancel">Cancel</string>
+
   <string name="install">Install</string>
   <string name="update">Update</string>
 
@@ -51,4 +53,23 @@
   <string name="setup_fingerprint">Setup Fingerprint</string>
   <string name="fingerprint_not_setup">Your device supports fingerprinting, so we suggest you set it up. This will make
     it much harder for anyone to impersonate you.</string>
+
+  <string name="password_title">Title</string>
+  <string name="password_title_helper_text">Website, Username, Profile, Title, ...</string>
+  <string name="password_features">Features</string>
+  <string name="password_feature_multicase">AbC</string>
+  <string name="password_feature_digits">123</string>
+  <string name="password_feature_specials">#!@</string>
+  <string name="password_size">Size</string>
+  <string name="password_size_short">Short</string>
+  <string name="password_size_normal">Normal</string>
+  <string name="password_size_huge">Huge</string>
+  <string name="password_value">Password</string>
+  <string name="password_touch_to_save">Touch to save</string>
+  <string name="password_saving">Saving…</string>
+  <string name="password_saved">Saved!</string>
+  <string name="password_save_failed">Save failed, touch to try again</string>
+  <string name="password_keyguard_title">Save Password</string>
+  <string name="password_keyguard_description">Enter your device PIN, password, pattern or fingerprint to save your new password securely.</string>
+  <string name="password_saving_failed_keyguard">Uh-oh. Touch to try again</string>
 </resources>

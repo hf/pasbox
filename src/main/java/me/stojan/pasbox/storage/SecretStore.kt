@@ -25,15 +25,27 @@
 
 package me.stojan.pasbox.storage
 
-import android.database.sqlite.SQLiteDatabase
-import dagger.Component
+import io.reactivex.Observable
 import io.reactivex.Single
-import javax.inject.Singleton
+import javax.crypto.Cipher
 
-@Component(modules = [AppStorageModule::class])
-@Singleton
-interface StorageComponent {
-  fun database(): Single<SQLiteDatabase>
-  fun kvstore(): KVStore
-  fun secrets(): SecretStore
+interface SecretStore {
+  abstract class Save {
+    abstract val cipher: Cipher
+    abstract val data: Any
+
+    abstract fun execute(): Single<Secret>
+  }
+
+  class Query(val offset: Long = 0, val count: Long = 0)
+
+  class Page(val total: Long, val offset: Long, val results: ArrayList<Pair<SecretPublic, Secret>>) {
+    val count: Int = results.size
+  }
+
+  val modifications: Observable<Pair<SecretPublic, Secret>>
+
+  fun save(data: Single<Pair<SecretPublic, SecretPrivate>>): Single<Save>
+
+  fun page(query: Query): Single<Page>
 }

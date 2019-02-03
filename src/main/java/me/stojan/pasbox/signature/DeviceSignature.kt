@@ -35,9 +35,11 @@ import java.security.spec.ECGenParameterSpec
 class DeviceSignature {
   companion object {
     fun create(): Single<DeviceSignature> =
-      Single.fromCallable { DeviceSignature().also { it.loadOrGenerate() } }.subscribeOn(
+      Single.fromCallable { createBlocking() }.subscribeOn(
         Schedulers.io()
       )
+
+    fun createBlocking(): DeviceSignature = DeviceSignature().also { it.loadOrGenerate() }
   }
 
   private var public: PublicKey? = null

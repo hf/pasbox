@@ -25,22 +25,30 @@
 
 package me.stojan.pasbox
 
+import android.content.Intent
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.widget.NestedScrollView
 import androidx.drawerlayout.widget.DrawerLayout
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.floatingactionbutton.FloatingActionButton
+import io.reactivex.Observable
 import io.reactivex.disposables.CompositeDisposable
 import io.reactivex.disposables.Disposable
+import io.reactivex.subjects.PublishSubject
+import me.stojan.pasbox.dev.Log
 
 abstract class AppActivity : AppCompatActivity() {
 
   private val pauseDisposables = CompositeDisposable()
   private val stopDisposables = CompositeDisposable()
+  private val destroyDisposables = CompositeDisposable()
 
   private var started = false
   private var resumed = false
+
+  private var activityResults = PublishSubject.create<Triple<Int, Int, Intent?>>()
+  val results: Observable<Triple<Int, Int, Intent?>> = activityResults
 
   private lateinit var _navigationDrawer: DrawerLayout
   private lateinit var _floatingAction: FloatingActionButton
@@ -53,7 +61,9 @@ abstract class AppActivity : AppCompatActivity() {
   val recycler: RecyclerView get() = _recycler
 
   override fun onCreate(savedInstanceState: Bundle?) {
-    super.onCreate(null)
+    super.onCreate(savedInstanceState)
+    destroyDisposables.clear()
+
     setContentView(R.layout.ui_main)
 
     setSupportActionBar(findViewById(R.id.toolbar))
@@ -80,28 +90,62 @@ abstract class AppActivity : AppCompatActivity() {
     stopDisposables.addAll(*disposables)
   }
 
+  fun disposeOnDestroy(vararg disposables: Disposable) {
+    if (isDestroyed) {
+      throw Error("Activity is already destroyed")
+    }
+
+    destroyDisposables.addAll(*disposables)
+  }
+
   override fun onStart() {
     super.onStart()
     started = true
     stopDisposables.clear()
+
+    Log.v(this) { text("onStart") }
   }
 
   override fun onResume() {
     super.onResume()
     resumed = true
     pauseDisposables.clear()
+
+    Log.v(this) { text("onResume") }
   }
 
   override fun onPause() {
     super.onPause()
     resumed = false
     pauseDisposables.clear()
+
+    Log.v(this) { text("onPause") }
   }
 
   override fun onStop() {
     super.onStop()
     started = false
     stopDisposables.dispose()
+
+    Log.v(this) { text("onStop") }
+  }
+
+  override fun onDestroy() {
+    super.onDestroy()
+
+    Log.v(this) { text("onDestroy") }
+  }
+
+  override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+    super.onActivityResult(requestCode, resultCode, data)
+    Log.v(this) {
+      text("Activity result")
+      param("requestCode", requestCode)
+      param("resultCode", resultCode)
+      param("data", data)
+    }
+
+    activityResults.onNext(Triple(requestCode, resultCode, data))
   }
 
 }

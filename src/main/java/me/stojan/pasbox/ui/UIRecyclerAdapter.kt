@@ -27,53 +27,149 @@ package me.stojan.pasbox.ui
 
 import android.view.View
 import android.view.ViewGroup
+import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.RecyclerView
+import me.stojan.pasbox.R
 import me.stojan.pasbox.dev.mainThreadOnly
-
+import me.stojan.pasbox.storage.Secret
+import me.stojan.pasbox.storage.SecretPublic
+import me.stojan.pasbox.storage.SecretStore
+import java.lang.Math.max
 
 class UIRecyclerAdapter(val activity: UIActivity) : RecyclerView.Adapter<UIRecyclerAdapter.UIViewHolder>() {
 
-  abstract class UIViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView)
+  abstract class UIViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
+    open val swipeFlags: Int = 0
 
-  class TopHolder(itemView: View, val bindFn: ((View) -> Unit)?) : UIViewHolder(itemView) {
-    fun bind() {
-      this.bindFn?.let { it(itemView) }
+    open fun onSwiped(direction: Int) {
+
     }
   }
 
+  interface Top {
+    companion object {
+      fun simple(layout: Int, bindFn: ((View) -> Unit)? = null) = object : Top {
+        override val layout: Int = layout
+        override val swipable: Boolean = false
+
+        override fun onBound(view: View) {
+          if (null != bindFn) {
+            bindFn(view)
+          }
+        }
+
+        override fun onSwiped(view: View, direction: Int) {
+        }
+
+      }
+    }
+
+    val layout: Int
+    val swipable: Boolean
+
+    fun onBound(view: View)
+    fun onSwiped(view: View, direction: Int)
+  }
+
+  class TopHolder(itemView: View) : UIViewHolder(itemView) {
+    var top: Top? = null
+
+    override val swipeFlags: Int
+      get() = top.let {
+        if (null == it || !it.swipable) {
+          0
+        } else {
+          ItemTouchHelper.START or ItemTouchHelper.END
+        }
+      }
+
+    fun bind(top: Top) {
+      this.top = top
+      this.top?.onBound(itemView)
+    }
+
+    override fun onSwiped(direction: Int) {
+      super.onSwiped(direction)
+      this.top?.onSwiped(itemView, direction)
+    }
+  }
+
+  class PagedHolder(itemView: View) : UIViewHolder(itemView) {
+
+    fun bind(pair: Pair<SecretPublic, Secret>) {
+
+    }
+
+  }
+
+  private val touchHelper =
+    ItemTouchHelper(object : ItemTouchHelper.SimpleCallback(0, ItemTouchHelper.START or ItemTouchHelper.END) {
+      override fun onMove(
+        recyclerView: RecyclerView,
+        viewHolder: RecyclerView.ViewHolder,
+        target: RecyclerView.ViewHolder
+      ): Boolean = false
+
+      override fun onSwiped(viewHolder: RecyclerView.ViewHolder, direction: Int) {
+        when (viewHolder) {
+          is UIViewHolder -> viewHolder.onSwiped(direction)
+        }
+      }
+
+      override fun getMovementFlags(recyclerView: RecyclerView, viewHolder: RecyclerView.ViewHolder): Int =
+        when (viewHolder) {
+          is UIViewHolder -> ItemTouchHelper.Callback.makeFlag(
+            ItemTouchHelper.ACTION_STATE_SWIPE,
+            viewHolder.swipeFlags
+          )
+          else -> 0
+        }
+    })
+
+  fun <R : RecyclerView> mount(recyclerView: R) {
+    recyclerView.adapter = this
+    touchHelper.attachToRecyclerView(recyclerView)
+  }
+
   override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): UIViewHolder =
-    topviews.indexOfFirst { viewType == it.first }
+    topviews.indexOfFirst { viewType == it.layout }
       .let { index ->
         if (index > -1) {
-          TopHolder(activity.layoutInflater.inflate(viewType, parent, false), topviews[index].second)
+          TopHolder(activity.layoutInflater.inflate(viewType, parent, false))
         } else {
-          throw Error("Unknown type")
+          PagedHolder(activity.layoutInflater.inflate(viewType, parent, false))
         }
       }
 
   override fun onBindViewHolder(holder: UIViewHolder, position: Int) {
     if (position < topviews.size) {
-      (holder as TopHolder).bind()
+      (holder as TopHolder).bind(topviews[position])
+    } else {
+      (holder as PagedHolder).bind(paged[position - topviews.size])
     }
   }
 
-  private val topviews = ArrayList<Pair<Int, ((View) -> Unit)?>>(5)
+  private val topviews = ArrayList<Top>(5)
+  private val paged = ArrayList<Pair<SecretPublic, Secret>>(100)
 
   override fun getItemViewType(position: Int): Int =
     if (position < topviews.size) {
-      topviews[position].first
+      topviews[position].layout
     } else {
-      0
+      when (paged[position - topviews.size].first.infoCase) {
+        SecretPublic.InfoCase.PASSWORD -> R.layout.card_secret_password
+        else -> throw RuntimeException("Unknown info at position=$position")
+      }
     }
 
-  override fun getItemCount(): Int = 0 + topviews.size
+  override fun getItemCount(): Int = 0 + topviews.size + paged.size
 
-  fun presentTop(layout: Int, bind: ((View) -> Unit)? = null): Int =
+  fun presentTop(top: Top): Int =
     mainThreadOnly {
-      topviews.indexOfFirst { layout == it.first }
+      topviews.indexOfFirst { top.layout == it.layout }
         .let { index ->
           if (index < 0) {
-            topviews.add(Pair(layout, bind))
+            topviews.add(top)
             notifyItemInserted(topviews.size - 1)
             topviews.size - 1
           } else {
@@ -82,16 +178,16 @@ class UIRecyclerAdapter(val activity: UIActivity) : RecyclerView.Adapter<UIRecyc
         }
     }
 
-  fun presentTopImportant(layout: Int, bind: ((View) -> Unit)? = null) {
+  fun presentTopImportant(top: Top) {
     mainThreadOnly {
-      topviews.indexOfFirst { layout == it.first }
+      topviews.indexOfFirst { top.layout == it.layout }
         .let { index ->
           if (index < 0) {
-            topviews.add(0, Pair(layout, bind))
+            topviews.add(0, top)
             notifyItemInserted(0)
           } else {
             topviews.removeAt(index)
-            topviews.add(0, Pair(layout, bind))
+            topviews.add(0, top)
             notifyItemMoved(index, 0)
           }
         }
@@ -100,13 +196,28 @@ class UIRecyclerAdapter(val activity: UIActivity) : RecyclerView.Adapter<UIRecyc
 
   fun dismissTop(layout: Int) {
     mainThreadOnly {
-      topviews.indexOfFirst { layout == it.first }
+      topviews.indexOfFirst { layout == it.layout }
         .let { index ->
           if (index > -1) {
             topviews.removeAt(index)
             notifyItemRemoved(index)
           }
         }
+    }
+  }
+
+  fun append(page: SecretStore.Page, clear: Boolean = false) {
+    mainThreadOnly {
+      if (clear) {
+        paged.clear()
+      }
+      val pagedLastIndex = topviews.size + max(0, paged.size - 1)
+      paged.addAll(page.results)
+      if (clear) {
+        notifyItemRangeChanged(topviews.size, topviews.size + max(0, paged.size - 1))
+      } else {
+        notifyItemRangeInserted(pagedLastIndex, max(0, topviews.size + paged.size - 1))
+      }
     }
   }
 }

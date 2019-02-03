@@ -70,8 +70,8 @@ class SQLiteQuery {
     this._order = order
   }
 
-  inline fun limit(rows: Long) {
-    this._limit = rows.toString()
+  inline fun limit(rows: Long, offset: Long = 0) {
+    this._limit = "$offset, $rows"
   }
 
   inline fun groupBy(groupBy: String) {

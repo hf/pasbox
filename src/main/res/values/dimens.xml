@@ -31,4 +31,7 @@
 
   <dimen name="cardPaddingVertical">16dp</dimen>
   <dimen name="cardPaddingHorizontal">16dp</dimen>
+
+  <dimen name="cardElevationModal">16dp</dimen>
+  <dimen name="cardElevationNormal">4dp</dimen>
 </resources>

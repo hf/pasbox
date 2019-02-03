@@ -60,14 +60,17 @@ class JobService : android.app.job.JobService() {
       runningJobs[params] = job.run(this@JobService, params)
         .observeOn(AndroidSchedulers.mainThread())
         .doOnDispose {
+          jobFinished(params, false)
           Log.v(this@JobService) { text("Job was disposed"); param("job", job) }
         }
         .subscribe({
+          jobFinished(params, false)
           Log.v(this@JobService) { text("Job finished successfully"); param("job", job); }
           mainThreadOnly {
             runningJobs.remove(params)
           }
         }, { error ->
+          jobFinished(params, false)
           Log.e(this@JobService) { text("Job failed with error"); param("job", job); error(error) }
           mainThreadOnly {
             runningJobs.remove(params)
