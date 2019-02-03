@@ -181,22 +181,21 @@ class UIRecyclerAdapter(val activity: UIActivity) : RecyclerView.Adapter<UIRecyc
         }
     }
 
-  fun presentTopImportant(top: Top) {
-    mainThreadOnly {
-      topviews.indexOfFirst { top.layout == it.layout }
-        .let { index ->
-          if (index < 0) {
-            topviews.add(0, top)
-            notifyItemInserted(0)
-          } else {
-            topviews.removeAt(index)
-            topviews.add(0, top)
-            notifyItemMoved(index, 0)
-          }
-
-          important += 1
+  fun presentTopImportant(top: Top): Int = mainThreadOnly {
+    topviews.indexOfFirst { top.layout == it.layout }
+      .let { index ->
+        if (index < 0) {
+          topviews.add(0, top)
+          notifyItemInserted(0)
+        } else {
+          topviews.removeAt(index)
+          topviews.add(0, top)
+          notifyItemMoved(index, 0)
         }
-    }
+
+        important += 1
+      }
+    0
   }
 
   fun dismissTop(layout: Int) {

@@ -199,6 +199,8 @@ class UIActivity(val app: App = App.Current) : AppActivity() {
     floatingAction.show()
     floatingAction.setOnClickListener {
       floatingAction.hide()
+
+      content.fullScroll(View.FOCUS_UP)
       adapter.presentTopImportant(object : UIRecyclerAdapter.Top {
         override val layout: Int = R.layout.card_create_secret
         override val swipable: Boolean = true
