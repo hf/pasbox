@@ -72,28 +72,25 @@ class DeviceSignature {
       KeyStore.getInstance("AndroidKeyStore")!!.run {
         load(null)
 
-        getEntry("device-signature", null).let { entry ->
-          if (null == entry) {
-            KeyPairGenerator.getInstance(KeyProperties.KEY_ALGORITHM_EC, "AndroidKeyStore")
-              .apply {
-                initialize(
-                  KeyGenParameterSpec.Builder(
-                    "device-signature",
-                    KeyProperties.PURPOSE_SIGN or KeyProperties.PURPOSE_VERIFY
-                  )
-                    .setAlgorithmParameterSpec(ECGenParameterSpec("secp256r1"))
-                    .setDigests(KeyProperties.DIGEST_SHA256, KeyProperties.DIGEST_SHA384, KeyProperties.DIGEST_SHA512)
-                    .build()
-                )
-              }
-              .generateKeyPair()
-          } else {
-            if (entry !is KeyStore.PrivateKeyEntry) {
-              throw Error("Entry is not a PrivateKeyEntry")
-            }
+        val privateKey = getKey("device-signature", null) as PrivateKey?
+        val certificate = getCertificate("device-signature")
 
-            KeyPair(entry.certificate.publicKey, entry.privateKey)
-          }
+        if (null == privateKey) {
+          KeyPairGenerator.getInstance(KeyProperties.KEY_ALGORITHM_EC, "AndroidKeyStore")
+            .apply {
+              initialize(
+                KeyGenParameterSpec.Builder(
+                  "device-signature",
+                  KeyProperties.PURPOSE_SIGN or KeyProperties.PURPOSE_VERIFY
+                )
+                  .setAlgorithmParameterSpec(ECGenParameterSpec("secp256r1"))
+                  .setDigests(KeyProperties.DIGEST_SHA256, KeyProperties.DIGEST_SHA384, KeyProperties.DIGEST_SHA512)
+                  .build()
+              )
+            }
+            .generateKeyPair()
+        } else {
+          KeyPair(certificate!!.publicKey, privateKey)
         }
       }.let { key ->
         if (key is KeyPair) {

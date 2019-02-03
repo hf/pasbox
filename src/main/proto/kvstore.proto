@@ -4,6 +4,11 @@ option java_multiple_files = true;
 option java_package = "me.stojan.pasbox.storage";
 
 message SQLiteKVStoreValue {
-  bytes aes_gcm_iv = 1;
-  bytes aes_gcm_ciphertext = 2;
+  oneof iv {
+    bytes aes_gcm_nopad_96 = 1;
+  }
+
+  bool aeadKey = 16;
+
+  bytes value = 32;
 }

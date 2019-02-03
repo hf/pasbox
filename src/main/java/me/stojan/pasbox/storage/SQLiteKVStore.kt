@@ -37,9 +37,7 @@ import io.reactivex.Single
 import io.reactivex.disposables.Disposable
 import io.reactivex.schedulers.Schedulers
 import io.reactivex.subjects.PublishSubject
-import me.stojan.pasbox.dev.Log
-import me.stojan.pasbox.dev.query
-import me.stojan.pasbox.dev.workerThreadOnly
+import me.stojan.pasbox.dev.*
 import java.security.KeyStore
 import javax.crypto.Cipher
 import javax.crypto.KeyGenerator
@@ -56,14 +54,14 @@ class SQLiteKVStore(db: Single<SQLiteDatabase>) : KVStore {
       val macKey = KeyStore.getInstance("AndroidKeyStore")!!.run {
         load(null)
 
-        getKey("kvstore-aead", null).let { key ->
+        getKey("kvstore-binder-aead", null).let { key ->
           if (null == key) {
             Log.v(this@SQLiteKVStore) { text("Generating AES256GCM key") }
             KeyGenerator.getInstance("AES", "AndroidKeyStore")
               .apply {
                 init(
                   KeyGenParameterSpec.Builder(
-                    "kvstore-aead",
+                    "kvstore-binder-aead",
                     KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT
                   )
                     .setKeySize(256)
@@ -109,10 +107,12 @@ class SQLiteKVStore(db: Single<SQLiteDatabase>) : KVStore {
 
                 bindBlob(2, Cipher.getInstance("AES/GCM/NoPadding").run {
                   init(Cipher.ENCRYPT_MODE, dbKey)
+                  updateAAD(key) // key must be Int here!!
                   parameters
                   SQLiteKVStoreValue.newBuilder()
-                    .setAesGcmIv(iv!!.asByteString())
-                    .setAesGcmCiphertext(doFinal(bytes).asByteString())
+                    .setAesGcmNopad96(iv!!.asByteString())
+                    .setAeadKey(true)
+                    .setValue(doFinal(bytes).asByteString())
                     .build()
                 }.toByteArray())
 
@@ -144,8 +144,11 @@ class SQLiteKVStore(db: Single<SQLiteDatabase>) : KVStore {
                   SQLiteKVStoreValue.parseFrom(value.asByteString())
                     .let { value ->
                       Cipher.getInstance("AES/GCM/NoPadding").run {
-                        init(Cipher.DECRYPT_MODE, dbKey, GCMParameterSpec(128, value.aesGcmIv.asByteArray()))
-                        doFinal(value.aesGcmCiphertext.asByteArray())
+                        init(Cipher.DECRYPT_MODE, dbKey, GCMParameterSpec(128, value.aesGcmNopad96.asByteArray()))
+                        if (value.aeadKey) {
+                          updateAAD(key) // key must be Int here!
+                        }
+                        doFinal(value.value)
                       }
                     }
                 }

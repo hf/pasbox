@@ -25,27 +25,38 @@
 
 package com.google.protobuf
 
-internal val LiteralByteStringClass = Class.forName("com.google.protobuf.ByteString\$LiteralByteString")
-internal val LiteralByteStringBytes = LiteralByteStringClass.getDeclaredField("bytes")
+val LiteralByteStringClass = Class.forName("com.google.protobuf.ByteString\$LiteralByteString")
+val LiteralByteStringBytes = LiteralByteStringClass.getDeclaredField("bytes").apply {
+  isAccessible = true
+}
 
-internal val BoundedByteStringClass = Class.forName("com.google.protobuf.ByteString\$BoundedByteString")
-internal val BoundedByteStringOffset = BoundedByteStringClass.getField("bytesOffset")
-internal val BoundedByteStringLength = BoundedByteStringClass.getField("bytesLength")
+val BoundedByteStringClass = Class.forName("com.google.protobuf.ByteString\$BoundedByteString")
+val BoundedByteStringOffset = BoundedByteStringClass.getDeclaredField("bytesOffset")
+  .apply {
+    isAccessible = true
+  }
+val BoundedByteStringLength = BoundedByteStringClass.getDeclaredField("bytesLength")
+  .apply {
+    isAccessible = true
+  }
 
 fun ByteArray.asByteString() = ByteString.wrap(this)
 
-fun ByteString.asByteArray(): ByteArray {
+fun ByteString.asByteArray(): ByteArray = peek { bytes, _, _ -> bytes }
+
+inline fun <R> ByteString.peek(fn: (ByteArray, Int, Int) -> R): R =
   if (LiteralByteStringClass == this.javaClass) {
-    return LiteralByteStringBytes.get(this) as ByteArray
+    val bytes = LiteralByteStringBytes.get(this) as ByteArray
+
+    fn(bytes, 0, bytes.size)
   } else if (BoundedByteStringClass == this.javaClass) {
     val offset = BoundedByteStringOffset.getInt(this)
     val length = BoundedByteStringLength.getInt(this)
     val bytes = LiteralByteStringBytes.get(this) as ByteArray
 
-    if (0 == offset && length == bytes.size) {
-      return bytes
-    }
-  }
+    fn(bytes, offset, length)
+  } else {
+    val bytes = this.toByteArray()
 
-  return this.toByteArray()
-}
+    fn(bytes, 0, bytes.size)
+  }
