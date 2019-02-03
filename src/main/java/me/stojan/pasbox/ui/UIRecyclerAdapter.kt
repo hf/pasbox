@@ -34,7 +34,6 @@ import me.stojan.pasbox.dev.mainThreadOnly
 import me.stojan.pasbox.storage.Secret
 import me.stojan.pasbox.storage.SecretPublic
 import me.stojan.pasbox.storage.SecretStore
-import java.lang.Math.max
 
 class UIRecyclerAdapter(val activity: UIActivity) : RecyclerView.Adapter<UIRecyclerAdapter.UIViewHolder>() {
 
@@ -97,7 +96,7 @@ class UIRecyclerAdapter(val activity: UIActivity) : RecyclerView.Adapter<UIRecyc
   class PagedHolder(itemView: View) : UIViewHolder(itemView) {
 
     fun bind(pair: Pair<SecretPublic, Secret>) {
-
+      (itemView as UISecret).bind(pair)
     }
 
   }
@@ -149,6 +148,7 @@ class UIRecyclerAdapter(val activity: UIActivity) : RecyclerView.Adapter<UIRecyc
     }
   }
 
+  private var important = 0
   private val topviews = ArrayList<Top>(5)
   private val paged = ArrayList<Pair<SecretPublic, Secret>>(100)
 
@@ -169,10 +169,13 @@ class UIRecyclerAdapter(val activity: UIActivity) : RecyclerView.Adapter<UIRecyc
       topviews.indexOfFirst { top.layout == it.layout }
         .let { index ->
           if (index < 0) {
-            topviews.add(top)
+            topviews.add(important, top)
             notifyItemInserted(topviews.size - 1)
             topviews.size - 1
           } else {
+            topviews.removeAt(index)
+            topviews.add(important, top)
+            notifyItemMoved(index, important)
             index
           }
         }
@@ -190,6 +193,8 @@ class UIRecyclerAdapter(val activity: UIActivity) : RecyclerView.Adapter<UIRecyc
             topviews.add(0, top)
             notifyItemMoved(index, 0)
           }
+
+          important += 1
         }
     }
   }
@@ -201,23 +206,31 @@ class UIRecyclerAdapter(val activity: UIActivity) : RecyclerView.Adapter<UIRecyc
           if (index > -1) {
             topviews.removeAt(index)
             notifyItemRemoved(index)
+
+            if (index < important) {
+              important -= 1
+            }
           }
         }
     }
   }
 
-  fun append(page: SecretStore.Page, clear: Boolean = false) {
+  fun update(page: SecretStore.Page) {
     mainThreadOnly {
-      if (clear) {
-        paged.clear()
+      val pagedFrom = topviews.size
+
+      if (page.results.size < paged.size) {
+        val removed = paged.size - page.results.size
+        notifyItemRangeRemoved(pagedFrom + page.results.size, removed)
+        notifyItemRangeChanged(pagedFrom, page.results.size)
+      } else if (page.results.size > paged.size) {
+        val new = page.results.size - paged.size
+        notifyItemRangeInserted(pagedFrom, new)
+        notifyItemRangeChanged(pagedFrom + new, paged.size)
       }
-      val pagedLastIndex = topviews.size + max(0, paged.size - 1)
+
+      paged.clear()
       paged.addAll(page.results)
-      if (clear) {
-        notifyItemRangeChanged(topviews.size, topviews.size + max(0, paged.size - 1))
-      } else {
-        notifyItemRangeInserted(pagedLastIndex, max(0, topviews.size + paged.size - 1))
-      }
     }
   }
 }

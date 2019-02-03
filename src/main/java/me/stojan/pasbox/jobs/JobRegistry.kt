@@ -35,7 +35,11 @@ import me.stojan.pasbox.safetynet.SafetyNetAttestationJobScheduled
 
 data class DynamicJob(override val id: Int) : Job {
   override fun run(context: Context, params: JobParameters): Completable = synchronized(Jobs.dynamic) {
-    Jobs.dynamic[id - Jobs.DYNAMIC_JOBS_FROM]!!
+    if (Jobs.dynamic.size > 0) {
+      Jobs.dynamic[id - Jobs.DYNAMIC_JOBS_FROM]!!
+    } else {
+      Completable.complete()
+    }
   }
 }
 

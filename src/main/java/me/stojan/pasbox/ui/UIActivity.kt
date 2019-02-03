@@ -148,7 +148,7 @@ class UIActivity(val app: App = App.Current) : AppActivity() {
         mainThreadOnly {
           if (!attestation.ctsProfileMatch) {
             Log.v(this@UIActivity) { text("Insecure device detected") }
-            adapter.presentTopImportant(UIRecyclerAdapter.Top.simple(R.layout.card_insecure_device))
+            adapter.presentTop(UIRecyclerAdapter.Top.simple(R.layout.card_insecure_device))
           } else {
             adapter.dismissTop(R.layout.card_insecure_device)
           }
@@ -226,7 +226,7 @@ class UIActivity(val app: App = App.Current) : AppActivity() {
         .observeOn(AndroidSchedulers.mainThread())
         .subscribe { page ->
           if (page.count > 0) {
-            adapter.append(page)
+            adapter.update(page)
           }
         })
     }
@@ -244,7 +244,7 @@ class UIActivity(val app: App = App.Current) : AppActivity() {
       .observeOn(AndroidSchedulers.mainThread())
       .subscribe { page ->
         if (page.count > 0) {
-          adapter.append(page, true)
+          adapter.update(page)
         }
 
       }
