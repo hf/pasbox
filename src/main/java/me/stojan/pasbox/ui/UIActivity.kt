@@ -36,7 +36,7 @@ import android.widget.Button
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.google.android.gms.common.ConnectionResult
 import com.google.android.gms.common.GoogleApiAvailability
-import com.google.protobuf.toByteString
+import com.google.protobuf.asByteString
 import io.reactivex.android.schedulers.AndroidSchedulers
 import me.stojan.pasbox.App
 import me.stojan.pasbox.AppActivity
@@ -140,7 +140,7 @@ class UIActivity(val app: App = App.Current) : AppActivity() {
     disposeOnPause(App.Components.Storage.kvstore().watch(KV.SAFETY_NET_ATTESTATION, nulls = false)
       .map { (_, bytes) ->
         workerThreadOnly {
-          SafetyNetAttestation.parseFrom(bytes!!.toByteString())
+          SafetyNetAttestation.parseFrom(bytes!!.asByteString())
         }
       }
       .observeOn(AndroidSchedulers.mainThread())

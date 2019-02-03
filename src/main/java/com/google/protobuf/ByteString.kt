@@ -25,4 +25,27 @@
 
 package com.google.protobuf
 
-fun ByteArray.toByteString() = ByteString.wrap(this)
+internal val LiteralByteStringClass = Class.forName("com.google.protobuf.ByteString\$LiteralByteString")
+internal val LiteralByteStringBytes = LiteralByteStringClass.getDeclaredField("bytes")
+
+internal val BoundedByteStringClass = Class.forName("com.google.protobuf.ByteString\$BoundedByteString")
+internal val BoundedByteStringOffset = BoundedByteStringClass.getField("bytesOffset")
+internal val BoundedByteStringLength = BoundedByteStringClass.getField("bytesLength")
+
+fun ByteArray.asByteString() = ByteString.wrap(this)
+
+fun ByteString.asByteArray(): ByteArray {
+  if (LiteralByteStringClass == this.javaClass) {
+    return LiteralByteStringBytes.get(this) as ByteArray
+  } else if (BoundedByteStringClass == this.javaClass) {
+    val offset = BoundedByteStringOffset.getInt(this)
+    val length = BoundedByteStringLength.getInt(this)
+    val bytes = LiteralByteStringBytes.get(this) as ByteArray
+
+    if (0 == offset && length == bytes.size) {
+      return bytes
+    }
+  }
+
+  return this.toByteArray()
+}

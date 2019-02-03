@@ -64,7 +64,27 @@ object Log {
         is Double -> builder.append(value).append('d')
         is Short -> builder.append(value).append('s')
         is Byte -> builder.append("0x").append(value.toString(16))
+        is ByteArray -> {
+          builder.append("B(")
+          builder.append(value.size)
+          builder.append(")[ ")
+          for (i in 0 until Math.min(16, value.size)) {
+            builder.append("0x")
+            builder.append(value[i].toString(16))
+            builder.append(", ")
+          }
+          if (value.size > 16) {
+            builder.append("...")
+          }
+          if (!builder[builder.length - 1].isWhitespace()) {
+            builder.append(' ')
+          }
+          builder.append("]")
+        }
         is Array<*> -> {
+          builder.append("O(")
+          builder.append(value.size)
+          builder.append(")")
           builder.append("[ ")
           value.forEach { item ->
             value(item)

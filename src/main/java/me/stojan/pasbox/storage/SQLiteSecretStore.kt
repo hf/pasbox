@@ -28,7 +28,8 @@ package me.stojan.pasbox.storage
 import android.database.sqlite.SQLiteDatabase
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
-import com.google.protobuf.toByteString
+import com.google.protobuf.asByteArray
+import com.google.protobuf.asByteString
 import io.reactivex.Single
 import io.reactivex.schedulers.Schedulers
 import io.reactivex.subjects.PublishSubject
@@ -93,21 +94,21 @@ class SQLiteSecretStore(db: Single<SQLiteDatabase>) : SecretStore {
           val public = data.first.toByteArray()
           val private = data.second.toByteArray()
 
-          cipher.updateAAD(data.second.id.toByteArray()) // only set the private ID here
+          cipher.updateAAD(data.second.id.asByteArray()) // only set the private ID here
           cipher.updateAAD(public)
 
           Secret.newBuilder()
-            .setAesGcmNopad96(cipher.iv.toByteString())
+            .setAesGcmNopad96(cipher.iv.asByteString())
             .setId(data.first.id) // cryptographically makes sure that the public and private IDs are the same
-            .setPublic(public.toByteString())
-            .setPrivate(cipher.doFinal(private).toByteString())
+            .setPublic(public.asByteString())
+            .setPrivate(cipher.doFinal(private).asByteString())
             .build()
         }
       }.flatMap { secret ->
         db.map { (db, key) ->
           db.compileStatement("INSERT OR REPLACE INTO secrets (uuid, value, modified_at) VALUES (?, ?, ?);")
             .apply {
-              val uuid = secret.id.toByteArray()
+              val uuid = secret.id.asByteArray()
               val bytes = secret.toByteArray()
 
               bindBlob(1, uuid)
@@ -120,9 +121,9 @@ class SQLiteSecretStore(db: Single<SQLiteDatabase>) : SecretStore {
                   bindBlob(
                     2,
                     SQLiteSecret.newBuilder()
-                      .setAesGcmNopad96(this.iv.toByteString())
+                      .setAesGcmNopad96(this.iv.asByteString())
                       .setAeadId(true)
-                      .setSecret(doFinal(bytes).toByteString())
+                      .setSecret(doFinal(bytes).asByteString())
                       .build()
                       .toByteArray()
                   )
@@ -200,14 +201,14 @@ class SQLiteSecretStore(db: Single<SQLiteDatabase>) : SecretStore {
                             init(
                               Cipher.DECRYPT_MODE,
                               key,
-                              GCMParameterSpec(128, container.aesGcmNopad96.toByteArray())
+                              GCMParameterSpec(128, container.aesGcmNopad96.asByteArray())
                             )
 
                             if (container.aeadId) {
                               updateAAD(cursor.getBlob(uuidIndex))
                             }
 
-                            doFinal(container.secret.toByteArray())
+                            doFinal(container.secret.asByteArray())
                           }
                       })
 

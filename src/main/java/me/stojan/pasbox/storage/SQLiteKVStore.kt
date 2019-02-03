@@ -28,7 +28,8 @@ package me.stojan.pasbox.storage
 import android.database.sqlite.SQLiteDatabase
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
-import com.google.protobuf.toByteString
+import com.google.protobuf.asByteArray
+import com.google.protobuf.asByteString
 import io.reactivex.Completable
 import io.reactivex.Maybe
 import io.reactivex.Observable
@@ -110,8 +111,8 @@ class SQLiteKVStore(db: Single<SQLiteDatabase>) : KVStore {
                   init(Cipher.ENCRYPT_MODE, dbKey)
                   parameters
                   SQLiteKVStoreValue.newBuilder()
-                    .setAesGcmIv(iv!!.toByteString())
-                    .setAesGcmCiphertext(doFinal(bytes).toByteString())
+                    .setAesGcmIv(iv!!.asByteString())
+                    .setAesGcmCiphertext(doFinal(bytes).asByteString())
                     .build()
                 }.toByteArray())
 
@@ -140,11 +141,11 @@ class SQLiteKVStore(db: Single<SQLiteDatabase>) : KVStore {
                 } else {
                   val value = cursor.getBlob(valueIndex)
 
-                  SQLiteKVStoreValue.parseFrom(value.toByteString())
+                  SQLiteKVStoreValue.parseFrom(value.asByteString())
                     .let { value ->
                       Cipher.getInstance("AES/GCM/NoPadding").run {
-                        init(Cipher.DECRYPT_MODE, dbKey, GCMParameterSpec(128, value.aesGcmIv.toByteArray()))
-                        doFinal(value.aesGcmCiphertext.toByteArray())
+                        init(Cipher.DECRYPT_MODE, dbKey, GCMParameterSpec(128, value.aesGcmIv.asByteArray()))
+                        doFinal(value.aesGcmCiphertext.asByteArray())
                       }
                     }
                 }

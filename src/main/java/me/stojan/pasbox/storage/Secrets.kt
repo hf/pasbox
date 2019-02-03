@@ -25,7 +25,7 @@
 
 package me.stojan.pasbox.storage
 
-import com.google.protobuf.toByteString
+import com.google.protobuf.asByteString
 import io.reactivex.Single
 import io.reactivex.schedulers.Schedulers
 import me.stojan.pasbox.dev.workerThreadOnly
@@ -39,7 +39,7 @@ object Password {
     Single.fromCallable {
       workerThreadOnly {
         val now = System.currentTimeMillis()
-        val id = UUID.randomUUID().toString().toByteArray().toByteString()
+        val id = UUID.randomUUID().toString().toByteArray().asByteString()
 
         val private = SecretPrivate.newBuilder()
           .setRandomPadding(
@@ -49,7 +49,7 @@ object Password {
                   nextInt(192) // skip the next int
                   nextBytes(it)
                 }
-            }.toByteString()
+            }.asByteString()
           )
           .setId(id)
           .setCreatedAt(now)
@@ -72,13 +72,13 @@ object Password {
               .run {
                 update(privateBytes)
                 digest()
-              }.toByteString()
+              }.asByteString()
           )
           .setSecp256R1Sha256(
             DeviceSignature.createBlocking()
               .apply {
                 sign(privateBytes)
-              }.signature().toByteString()
+              }.signature().asByteString()
           )
           .setPassword(
             SecretPublic.Password.newBuilder()

@@ -31,7 +31,8 @@ import android.content.Context
 import android.os.Build
 import android.util.Base64
 import com.google.android.gms.safetynet.SafetyNet
-import com.google.protobuf.toByteString
+import com.google.protobuf.asByteArray
+import com.google.protobuf.asByteString
 import com.squareup.moshi.JsonAdapter
 import io.reactivex.Single
 import me.stojan.pasbox.APIKeys
@@ -55,7 +56,7 @@ abstract class SafetyNetAttestationJob : Job {
         workerThreadOnly { DeviceID.parseFrom(bytes) }
       }
       .map { deviceId ->
-        workerThreadOnly { DeviceSignature().apply { sign(deviceId.currentIdBytes.toByteArray()) }.signature() }
+        workerThreadOnly { DeviceSignature().apply { sign(deviceId.currentIdBytes.asByteArray()) }.signature() }
       }
       .flatMap { attestation ->
         workerThreadOnly { SafetyNet.getClient(context).attest(attestation, APIKeys.SAFETY_NET).toMaybe() }
@@ -81,9 +82,9 @@ abstract class SafetyNetAttestationJob : Job {
 
       SafetyNetAttestation.newBuilder()
         .setNonce(attestation.nonce)
-        .setApkDigestSha256(Base64.decode(attestation.apkDigestSha256, Base64.DEFAULT).toByteString())
+        .setApkDigestSha256(Base64.decode(attestation.apkDigestSha256, Base64.DEFAULT).asByteString())
         .setApkPackageName(attestation.apkPackageName)
-        .setApkCertificateDigestSha256(attestation.apkCertificateDigestSha256?.let { it[0]?.toByteString() })
+        .setApkCertificateDigestSha256(attestation.apkCertificateDigestSha256?.let { it[0]?.asByteString() })
         .setCtsProfileMatch(attestation.ctsProfileMatch)
         .setBasicIntegrity(attestation.basicIntegrity)
         .setAdvice(attestation.advice)
