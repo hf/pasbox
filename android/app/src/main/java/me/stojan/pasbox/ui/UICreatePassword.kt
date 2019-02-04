@@ -41,7 +41,7 @@ import me.stojan.pasbox.App
 import me.stojan.pasbox.R
 import me.stojan.pasbox.dev.mainThreadOnly
 import me.stojan.pasbox.jobs.Jobs
-import me.stojan.pasbox.storage.Password
+import me.stojan.pasbox.storage.secrets.Password
 import java.security.SecureRandom
 
 class UICreatePassword @JvmOverloads constructor(

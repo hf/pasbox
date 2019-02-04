@@ -23,13 +23,15 @@
  *
  */
 
-package me.stojan.pasbox.storage
+package me.stojan.pasbox.storage.secrets
 
 import com.google.protobuf.asByteString
 import io.reactivex.Single
 import io.reactivex.schedulers.Schedulers
 import me.stojan.pasbox.dev.workerThreadOnly
 import me.stojan.pasbox.signature.DeviceSignature
+import me.stojan.pasbox.storage.SecretPrivate
+import me.stojan.pasbox.storage.SecretPublic
 import java.security.MessageDigest
 import java.security.SecureRandom
 import java.util.*

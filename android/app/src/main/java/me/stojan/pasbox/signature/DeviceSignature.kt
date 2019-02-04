@@ -29,6 +29,7 @@ import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
 import io.reactivex.Single
 import io.reactivex.schedulers.Schedulers
+import me.stojan.pasbox.dev.workerThreadOnly
 import java.security.*
 import java.security.spec.ECGenParameterSpec
 
@@ -39,7 +40,9 @@ class DeviceSignature {
         Schedulers.io()
       )
 
-    fun createBlocking(): DeviceSignature = DeviceSignature().also { it.loadOrGenerate() }
+    fun createBlocking(): DeviceSignature = workerThreadOnly {
+      DeviceSignature().also { it.loadOrGenerate() }
+    }
   }
 
   private var public: PublicKey? = null
