@@ -55,6 +55,7 @@ class UIActivity(val app: App = App.Current) : AppActivity() {
   private lateinit var adapter: UIRecyclerAdapter
 
   private var coldStart = true
+  private var inAction = false
 
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
@@ -196,6 +197,10 @@ class UIActivity(val app: App = App.Current) : AppActivity() {
   }
 
   private fun activateFAB() {
+    if (inAction) {
+      return
+    }
+
     floatingAction.show()
     floatingAction.setOnClickListener {
       floatingAction.hide()
@@ -208,14 +213,16 @@ class UIActivity(val app: App = App.Current) : AppActivity() {
         override fun onBound(view: View) {
           (view as UICreateSecret).reset()
           view.onDone = {
-            Log.v(this@UIActivity) { text("Done") }
             adapter.dismissTop(layout)
+            floatingAction.show()
+            inAction = false
           }
         }
 
         override fun onSwiped(view: View, direction: Int) {
           adapter.dismissTop(layout)
           floatingAction.show()
+          inAction = false
         }
       })
     }

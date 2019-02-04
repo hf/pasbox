@@ -74,7 +74,11 @@ class UICreateSecret @JvmOverloads constructor(
     layoutInflater.inflate(layout, this, true)
       .also {
         it.findViewById<UICreatePassword?>(R.id.card_create_secret_password)
-          ?.let { it.onDone = { this@UICreateSecret.onDone?.invoke(this@UICreateSecret) } }
+          ?.let {
+            it.onDone = {
+              this@UICreateSecret.onDone?.invoke(this@UICreateSecret)
+            }
+          }
       }
   }
 

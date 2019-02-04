@@ -39,6 +39,7 @@
   app:contentPaddingRight="@dimen/cardPaddingHorizontal"
   android:clipChildren="false"
   app:cardElevation="@dimen/cardElevationNormal"
+  app:cardMaxElevation="@dimen/cardElevationModal"
   >
 
   <LinearLayout

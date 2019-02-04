@@ -38,6 +38,7 @@
   app:contentPaddingLeft="@dimen/cardPaddingHorizontal"
   app:contentPaddingRight="@dimen/cardPaddingHorizontal"
   app:cardElevation="@dimen/cardElevationNormal"
+  app:cardMaxElevation="@dimen/cardElevationModal"
   >
 
   <LinearLayout
