@@ -30,12 +30,17 @@ import android.app.KeyguardManager
 import android.content.Context
 import android.hardware.fingerprint.FingerprintManager
 import android.os.Build
+import android.text.Editable
+import android.text.TextWatcher
 import android.util.AttributeSet
+import android.view.View
+import android.view.inputmethod.EditorInfo
 import android.widget.LinearLayout
 import android.widget.TextView
 import com.google.android.material.chip.Chip
 import com.google.android.material.chip.ChipGroup
 import com.google.android.material.textfield.TextInputEditText
+import com.google.android.material.textfield.TextInputLayout
 import io.reactivex.android.schedulers.AndroidSchedulers
 import me.stojan.pasbox.App
 import me.stojan.pasbox.R
@@ -59,8 +64,17 @@ class UICreatePassword @JvmOverloads constructor(
 
   var onDone: ((UICreatePassword) -> Unit)? = null
 
+  lateinit var titleLayout: TextInputLayout
   lateinit var title: TextInputEditText
+
+  lateinit var websiteLayout: TextInputLayout
+  lateinit var website: TextInputEditText
+
+  lateinit var usernameLayout: TextInputLayout
+  lateinit var username: TextInputEditText
+
   lateinit var password: TextInputEditText
+  var passwordTextWatcher: TextWatcher? = null
 
   lateinit var features: ChipGroup
   lateinit var featureMulticase: Chip
@@ -71,11 +85,89 @@ class UICreatePassword @JvmOverloads constructor(
 
   lateinit var save: TextView
 
+  private val canSave: Boolean get() = title.length() > 0 && password.length() > 0
+
   override fun onFinishInflate() {
     super.onFinishInflate()
 
     title = findViewById(R.id.title)
+    title.apply {
+      requestFocus()
+      setOnEditorActionListener { _, actionId, _ ->
+        if (EditorInfo.IME_ACTION_DONE == actionId) {
+          if (canSave) {
+            beginSave()
+            true
+          } else {
+            false
+          }
+        } else {
+          false
+        }
+      }
+
+      addTextChangedListener(object : TextWatcher {
+        override fun afterTextChanged(s: Editable) {
+          while (s.isNotEmpty() && s[0].isWhitespace()) {
+            s.delete(0, 1)
+          }
+
+          Regex("([a-z-_]+(\\.[a-z-_]{2,})+)", RegexOption.IGNORE_CASE).find(s)
+            .let { matchResult ->
+              if (null == matchResult) {
+                website.text = null
+                username.text = null
+                websiteLayout.visibility = View.GONE
+                usernameLayout.visibility = View.GONE
+              } else {
+                website.setText(matchResult.value)
+                websiteLayout.visibility = View.VISIBLE
+
+                if (matchResult.range.first > 0) {
+                  username.setText(s.subSequence(0, matchResult.range.first).trim())
+                  usernameLayout.visibility = View.VISIBLE
+                } else if ((matchResult.range.endInclusive + 1) < s.length) {
+                  username.setText(s.subSequence((matchResult.range.endInclusive + 1), s.length).trim())
+                  usernameLayout.visibility = View.VISIBLE
+                } else {
+                  username.text = null
+                  usernameLayout.visibility = View.GONE
+                }
+              }
+            }
+
+          updateSave()
+        }
+
+        override fun beforeTextChanged(s: CharSequence, start: Int, count: Int, after: Int) {
+        }
+
+        override fun onTextChanged(s: CharSequence, start: Int, before: Int, count: Int) {
+        }
+      })
+    }
+
     password = findViewById(R.id.password)
+    password.apply {
+      setOnEditorActionListener { _, actionId, _ ->
+        if (EditorInfo.IME_ACTION_DONE == actionId) {
+          if (canSave) {
+            beginSave()
+            true
+          } else {
+            false
+          }
+        } else {
+          false
+        }
+      }
+    }
+
+    websiteLayout = findViewById(R.id.website_layout)
+    website = findViewById(R.id.website)
+
+    usernameLayout = findViewById(R.id.username_layout)
+    username = findViewById(R.id.username)
 
     features = findViewById(R.id.features)
     featureMulticase = findViewById(R.id.feature_multicase)
@@ -86,7 +178,9 @@ class UICreatePassword @JvmOverloads constructor(
 
     save = findViewById(R.id.save)
     save.setOnClickListener {
-      beginSave()
+      if (canSave) {
+        beginSave()
+      }
     }
 
     featureMulticase.setOnCheckedChangeListener { _, _ ->
@@ -109,43 +203,85 @@ class UICreatePassword @JvmOverloads constructor(
       }
     }
 
-    generatePassword()
+    post {
+      generatePassword()
+      updateSave()
+    }
   }
 
-  fun generatePassword() {
+  private fun generatePassword() {
+    val multicase = featureMulticase.isChecked
+    val digits = featureDigits.isChecked
+    val specials = featureDigits.isChecked
+    val length = when (size.checkedChipId) {
+      R.id.size_short -> 8
+      -1, R.id.size_normal -> 16
+      R.id.size_huge -> 32
+      else -> throw RuntimeException("Unknown checked id=${size.checkedChipId}")
+    }
+
+    if (null != passwordTextWatcher) {
+      password.removeTextChangedListener(passwordTextWatcher)
+    }
+
     password.setText(String(StringBuilder(UPCASE.length + LOCASE.length + DIGITS.length + SPECIALS.length)
       .apply {
         append(LOCASE)
 
-        if (featureMulticase.isChecked) {
+        if (multicase) {
           append(UPCASE)
         }
 
-        if (featureDigits.isChecked) {
+        if (digits) {
           append(DIGITS)
         }
 
-        if (featureSpecials.isChecked) {
+        if (specials) {
           append(SPECIALS)
         }
       }
       .let { chars ->
         SecureRandom().run {
-          CharArray(
-            when (size.checkedChipId) {
-              R.id.size_short -> 8
-              -1, R.id.size_normal -> 16
-              R.id.size_huge -> 32
-              else -> throw RuntimeException("Unknown checked id=${size.checkedChipId}")
-            }
-          ) { chars[nextInt(chars.length)] }
+          CharArray(length) { chars[nextInt(chars.length)] }
         }
       })
     )
+
+    passwordTextWatcher = object : TextWatcher {
+      override fun afterTextChanged(s: Editable) {
+        while (s.isNotEmpty() && s[0].isWhitespace()) {
+          s.delete(0, 1)
+        }
+
+        updateSave()
+      }
+
+      override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {
+      }
+
+      override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
+      }
+    }
+
+    password.addTextChangedListener(passwordTextWatcher)
   }
 
-  fun beginSave() {
-    save.setOnClickListener(null)
+  private fun updateSave() {
+    if (title.length() > 0 && password.length() > 0) {
+      save.setText(R.string.password_touch_to_save)
+    } else if (title.length() <= 0) {
+      save.setText(R.string.password_enter_title_to_save)
+    } else if (password.length() <= 0) {
+      save.setText(R.string.password_enter_password_to_save)
+    } else {
+      save.text = null
+    }
+  }
+
+  private fun beginSave() {
+    save.isEnabled = false
+    title.isEnabled = false
+    password.isEnabled = false
 
     context.getSystemService(FingerprintManager::class.java)
       .let { fingerprintManager ->
@@ -167,7 +303,14 @@ class UICreatePassword @JvmOverloads constructor(
                     save.setText(R.string.password_saving)
 
                     App.Components.Storage.secrets()
-                      .save(Password.create(title.text.toString(), password.text.toString()))
+                      .save(
+                        Password.create(
+                          title.text.toString(),
+                          website.text?.toString(),
+                          username.text?.toString(),
+                          password.text.toString()
+                        )
+                      )
                       .observeOn(AndroidSchedulers.mainThread())
                       .subscribe { saveOp ->
                         // put save.cipher into fingerprint manager
@@ -183,14 +326,18 @@ class UICreatePassword @JvmOverloads constructor(
                             save.setText(R.string.password_saved)
                             onDone?.invoke(this@UICreatePassword)
                           }, {
+                            save.isEnabled = true
+                            title.isEnabled = true
+                            password.isEnabled = true
                             save.setText(R.string.password_save_failed)
-                            save.setOnClickListener { beginSave() }
                           })
 
                       }
                   } else {
+                    save.isEnabled = true
+                    title.isEnabled = true
+                    password.isEnabled = true
                     save.setText(R.string.password_saving_failed_keyguard)
-                    save.setOnClickListener { beginSave() }
                   }
 
                 }

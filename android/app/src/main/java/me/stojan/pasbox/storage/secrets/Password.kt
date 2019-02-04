@@ -37,7 +37,12 @@ import java.security.SecureRandom
 import java.util.*
 
 object Password {
-  fun create(title: String, password: String): Single<Pair<SecretPublic, SecretPrivate>> =
+  fun create(
+    title: String,
+    website: String?,
+    user: String?,
+    password: String
+  ): Single<Pair<SecretPublic, SecretPrivate>> =
     Single.fromCallable {
       workerThreadOnly {
         val now = System.currentTimeMillis()
@@ -85,6 +90,8 @@ object Password {
           .setPassword(
             SecretPublic.Password.newBuilder()
               .setTitle(title)
+              .setWebsite(website)
+              .setUser(user)
               .build()
           )
           .build()

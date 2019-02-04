@@ -28,6 +28,8 @@
 
   <dimen name="marginVertical">16dp</dimen>
   <dimen name="marginHorizontal">16dp</dimen>
+  <dimen name="marginVerticalHalf">8dp</dimen>
+  <dimen name="marginHorizontalHalf">8dp</dimen>
 
   <dimen name="cardPaddingVertical">16dp</dimen>
   <dimen name="cardPaddingHorizontal">16dp</dimen>

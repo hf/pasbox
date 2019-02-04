@@ -55,7 +55,7 @@
     it much harder for anyone to impersonate you.</string>
 
   <string name="password_title">Title</string>
-  <string name="password_title_helper_text">Website, Username, Profile, Title, ...</string>
+  <string name="password_title_helper_text">Website, Username, Email, ...</string>
   <string name="password_features">Features</string>
   <string name="password_feature_multicase">AbC</string>
   <string name="password_feature_digits">123</string>
@@ -72,4 +72,8 @@
   <string name="password_keyguard_title">Save Password</string>
   <string name="password_keyguard_description">Enter your device PIN, password, pattern or fingerprint to save your new password securely.</string>
   <string name="password_saving_failed_keyguard">Uh-oh. Touch to try again</string>
+  <string name="password_enter_title_to_save">Enter a title...</string>
+  <string name="password_enter_password_to_save">Enter password...</string>
+  <string name="password_website">Website</string>
+  <string name="password_username_email">Username / Email</string>
 </resources>
