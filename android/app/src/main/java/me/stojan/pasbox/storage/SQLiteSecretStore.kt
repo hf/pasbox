@@ -79,6 +79,26 @@ class SQLiteSecretStore(db: Single<SQLiteDatabase>) : SecretStore {
     }
   }.cache()
 
+  private inner class AESGCMNoPad96Open(key: Key, override val data: Pair<SecretPublic, Secret>) : SecretStore.Open() {
+    override val cipher: Cipher = Cipher.getInstance("AES/GCM/NoPadding")
+      .apply {
+        init(Cipher.DECRYPT_MODE, key, GCMParameterSpec(128, data.second.aesGcmNopad96.toByteArray()))
+      }
+
+    override fun execute(): Single<Pair<SecretPublic, SecretPrivate>> =
+      Single.fromCallable {
+        workerThreadOnly {
+          cipher.updateAAD(data.first.id.toByteArray())
+          cipher.updateAAD(data.second.public.toByteArray())
+
+          val private = SecretPrivate.parseFrom(cipher.doFinal(data.second.private.toByteArray()))
+
+          Pair(data.first, private)
+        }
+      }
+
+  }
+
   private inner class AESGCMNoPad96Save(key: Key, override val data: Pair<SecretPublic, SecretPrivate>) :
     SecretStore.Save() {
     override val cipher: Cipher = Cipher.getInstance("AES/GCM/NoPadding")
@@ -135,6 +155,18 @@ class SQLiteSecretStore(db: Single<SQLiteDatabase>) : SecretStore {
       }
         .subscribeOn(Schedulers.io())
   }
+
+  override fun open(data: Single<Pair<SecretPublic, Secret>>): Single<SecretStore.Open> =
+    data.map { data ->
+      workerThreadOnly {
+        KeyStore.getInstance("AndroidKeyStore")
+          .run {
+            load(null)
+
+            AESGCMNoPad96Open(getKey("secrets-user-aead", null), data)
+          }
+      }
+    }
 
   override fun save(data: Single<Pair<SecretPublic, SecretPrivate>>): Single<SecretStore.Save> =
     data.map { data ->

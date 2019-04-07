@@ -56,7 +56,7 @@ class UICreatePassword @JvmOverloads constructor(
   companion object {
     const val UPCASE = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
     const val LOCASE = "abcdefghijklmnopqrstuvwxyz"
-    const val DIGITS = "012346789"
+    const val DIGITS = "0123456789"
     const val SPECIALS = "!@#$%^&*()-_=+[]{}:?<>~"
   }
 
@@ -290,8 +290,8 @@ class UICreatePassword @JvmOverloads constructor(
 
             activity.startActivityForResult(
               keyguardManager.createConfirmDeviceCredentialIntent(
-                resources.getString(R.string.password_keyguard_title),
-                resources.getString(R.string.password_keyguard_description)
+                resources.getString(R.string.create_password_keyguard_title),
+                resources.getString(R.string.create_password_keyguard_description)
               ), RequestCodes.UI_CREATE_PASSWORD_KEYGUARD
             )
 

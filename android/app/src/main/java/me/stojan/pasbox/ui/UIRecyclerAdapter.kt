@@ -30,6 +30,7 @@ import android.view.ViewGroup
 import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.RecyclerView
 import me.stojan.pasbox.R
+import me.stojan.pasbox.dev.Log
 import me.stojan.pasbox.dev.mainThreadOnly
 import me.stojan.pasbox.storage.Secret
 import me.stojan.pasbox.storage.SecretPublic
@@ -41,6 +42,10 @@ class UIRecyclerAdapter(val activity: UIActivity) : RecyclerView.Adapter<UIRecyc
     open val swipeFlags: Int = 0
 
     open fun onSwiped(direction: Int) {
+
+    }
+
+    open fun onRecycled() {
 
     }
   }
@@ -99,6 +104,11 @@ class UIRecyclerAdapter(val activity: UIActivity) : RecyclerView.Adapter<UIRecyc
       (itemView as UISecret).bind(pair)
     }
 
+    override fun onRecycled() {
+      super.onRecycled()
+      (itemView as UISecret).recycle()
+    }
+
   }
 
   private val touchHelper =
@@ -146,6 +156,30 @@ class UIRecyclerAdapter(val activity: UIActivity) : RecyclerView.Adapter<UIRecyc
     } else {
       (holder as PagedHolder).bind(paged[position - topviews.size])
     }
+  }
+
+  override fun onViewRecycled(holder: UIViewHolder) {
+    super.onViewRecycled(holder)
+
+    Log.v(this) {
+      text("Recycling")
+      param("holder", holder)
+    }
+
+    holder.onRecycled()
+  }
+
+  override fun onFailedToRecycleView(holder: UIViewHolder): Boolean {
+    val defaultResult = super.onFailedToRecycleView(holder)
+
+    Log.v(this) {
+      text("Failed to recycle")
+      param("holder", holder)
+    }
+
+    holder.onRecycled()
+
+    return defaultResult
   }
 
   private var important = 0

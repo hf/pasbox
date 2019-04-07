@@ -37,6 +37,13 @@ interface SecretStore {
     abstract fun execute(): Single<Secret>
   }
 
+  abstract class Open {
+    abstract val cipher: Cipher
+    abstract val data: Pair<SecretPublic, Secret>
+
+    abstract fun execute(): Single<Pair<SecretPublic, SecretPrivate>>
+  }
+
   class Query(val offset: Long = 0, val count: Long = 0)
 
   class Page(val total: Long, val offset: Long, val results: ArrayList<Pair<SecretPublic, Secret>>) {
@@ -46,6 +53,7 @@ interface SecretStore {
   val modifications: Observable<Pair<SecretPublic, Secret>>
 
   fun save(data: Single<Pair<SecretPublic, SecretPrivate>>): Single<Save>
+  fun open(data: Single<Pair<SecretPublic, Secret>>): Single<Open>
 
   fun page(query: Query): Single<Page>
 }
