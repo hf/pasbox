@@ -97,7 +97,7 @@ dependencies {
 
   implementation 'com.google.protobuf:protobuf-lite:3.0.1'
 
-  implementation 'com.google.crypto.tink:tink-android:1.2.1'
+  implementation 'org.whispersystems:curve25519-android:0.5.0'
 
   implementation 'com.google.android.gms:play-services-safetynet:16.0.0'
 
