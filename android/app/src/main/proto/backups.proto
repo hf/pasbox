@@ -1,0 +1,72 @@
+syntax = "proto3";
+
+option java_multiple_files = true;
+option java_package = "me.stojan.pasbox.storage";
+
+import "secrets.proto";
+
+message RestoreKey {
+  BackupKey backup = 1;
+
+  oneof key {
+    bytes curve25519 = 16;
+  }
+}
+
+message RestoreKeyContainer {
+  oneof iv {
+    bytes aes_gcm_nopad96 = 1;
+  }
+
+  bytes content = 16;
+}
+
+message BackupKey {
+  oneof key {
+    bytes curve25519 = 1;
+  }
+}
+
+message BackupKeyContainer {
+  oneof iv {
+    bytes aes_gcm_nopad96 = 1;
+  }
+
+  bytes content = 16;
+}
+
+message Backup {
+  message Key {
+    message Curve25519 {
+      bytes entry_pub = 1;
+      bytes restore_pub = 2;
+    }
+
+    oneof key {
+      Curve25519 curve25519_hmac256 = 1;
+    }
+  }
+
+  oneof iv {
+    bytes aes_gcm_nopad_96 = 1;
+  }
+
+  bytes id = 16;
+  bytes key = 17;
+  bytes content = 18;
+}
+
+message BackupContent {
+  bytes id = 1;
+
+  SecretPublic public = 16;
+  SecretPrivate private = 17;
+}
+
+message BackupContainer {
+  oneof iv {
+    bytes aes_gcm_nopad_96 = 1;
+  }
+
+  bytes content = 16;
+}

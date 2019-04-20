@@ -100,3 +100,13 @@ inline fun SQLiteDatabase.query(queryFn: SQLiteQuery.() -> Unit): Cursor =
       )
     }
 
+
+inline fun <R> SQLiteDatabase.transaction(txFn: (SQLiteDatabase) -> R): R =
+  try {
+    beginTransaction()
+    val returnValue = txFn(this)
+    setTransactionSuccessful()
+    returnValue
+  } finally {
+    endTransaction()
+  }

@@ -65,4 +65,8 @@ class AppStorageModule(val app: App) {
   @Provides
   @Singleton
   fun provideSQLiteSecretStore(db: Single<SQLiteDatabase>): SecretStore = SQLiteSecretStore(db)
+
+  @Provides
+  @Singleton
+  fun provideBackupStore(db: Single<SQLiteDatabase>): BackupStore = SQLiteBackupStore(db)
 }

@@ -27,23 +27,8 @@ package me.stojan.pasbox.storage
 
 import io.reactivex.Observable
 import io.reactivex.Single
-import javax.crypto.Cipher
 
 interface SecretStore {
-  abstract class Save {
-    abstract val cipher: Cipher
-    abstract val data: Any
-
-    abstract fun execute(): Single<Secret>
-  }
-
-  abstract class Open {
-    abstract val cipher: Cipher
-    abstract val data: Pair<SecretPublic, Secret>
-
-    abstract fun execute(): Single<Pair<SecretPublic, SecretPrivate>>
-  }
-
   class Query(val offset: Long = 0, val count: Long = 0)
 
   class Page(val total: Long, val offset: Long, val results: ArrayList<Pair<SecretPublic, Secret>>) {
@@ -52,8 +37,8 @@ interface SecretStore {
 
   val modifications: Observable<Pair<SecretPublic, Secret>>
 
-  fun save(data: Single<Pair<SecretPublic, SecretPrivate>>): Single<Save>
-  fun open(data: Single<Pair<SecretPublic, Secret>>): Single<Open>
+  fun save(data: Single<Pair<SecretPublic, SecretPrivate>>): Single<Pair<SecretPublic, SecretPrivate>>
+  fun open(data: Single<Pair<SecretPublic, Secret>>): Single<Pair<SecretPublic, SecretPrivate>>
 
   fun page(query: Query): Single<Page>
 }

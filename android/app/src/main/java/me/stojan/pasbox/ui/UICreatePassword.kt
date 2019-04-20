@@ -28,7 +28,6 @@ package me.stojan.pasbox.ui
 import android.app.Activity
 import android.app.KeyguardManager
 import android.content.Context
-import android.hardware.fingerprint.FingerprintManager
 import android.os.Build
 import android.text.Editable
 import android.text.TextWatcher
@@ -44,6 +43,7 @@ import com.google.android.material.textfield.TextInputLayout
 import io.reactivex.android.schedulers.AndroidSchedulers
 import me.stojan.pasbox.App
 import me.stojan.pasbox.R
+import me.stojan.pasbox.dev.Log
 import me.stojan.pasbox.dev.mainThreadOnly
 import me.stojan.pasbox.jobs.Jobs
 import me.stojan.pasbox.storage.secrets.Password
@@ -283,67 +283,89 @@ class UICreatePassword @JvmOverloads constructor(
     title.isEnabled = false
     password.isEnabled = false
 
-    context.getSystemService(FingerprintManager::class.java)
-      .let { fingerprintManager ->
-        context.getSystemService(KeyguardManager::class.java)
-          .let { keyguardManager ->
+    context.getSystemService(KeyguardManager::class.java)
+      .let { keyguardManager ->
 
-            activity.startActivityForResult(
-              keyguardManager.createConfirmDeviceCredentialIntent(
-                resources.getString(R.string.create_password_keyguard_title),
-                resources.getString(R.string.create_password_keyguard_description)
-              ), RequestCodes.UI_CREATE_PASSWORD_KEYGUARD
-            )
+        activity.startActivityForResult(
+          keyguardManager.createConfirmDeviceCredentialIntent(
+            resources.getString(R.string.create_password_keyguard_title),
+            resources.getString(R.string.create_password_keyguard_description)
+          ), RequestCodes.UI_CREATE_PASSWORD_KEYGUARD
+        )
 
-            activity.disposeOnDestroy(activity.results.filter { RequestCodes.UI_CREATE_PASSWORD_KEYGUARD == it.first }
-              .take(1)
-              .subscribe { (_, resultCode, _) ->
-                mainThreadOnly {
-                  if (Activity.RESULT_OK == resultCode) {
-                    save.setText(R.string.password_saving)
+        activity.disposeOnDestroy(activity.results.filter { RequestCodes.UI_CREATE_PASSWORD_KEYGUARD == it.first }
+          .take(1)
+          .subscribe { (_, resultCode, _) ->
+            mainThreadOnly {
+              if (Activity.RESULT_OK == resultCode) {
+                save.setText(R.string.password_saving)
 
-                    App.Components.Storage.secrets()
-                      .save(
-                        Password.create(
-                          title.text.toString(),
-                          website.text?.toString(),
-                          username.text?.toString(),
-                          password.text.toString()
-                        )
-                      )
-                      .observeOn(AndroidSchedulers.mainThread())
-                      .subscribe { saveOp ->
-                        // put save.cipher into fingerprint manager
-                        Jobs.schedule(activity, saveOp.execute().toCompletable()) {
-                          if (Build.VERSION.SDK_INT >= 28) {
-                            setImportantWhileForeground(true)
-                          } else {
-                            setMinimumLatency(0)
-                          }
-                          setOverrideDeadline(0)
-                        }.second.observeOn(AndroidSchedulers.mainThread())
-                          .subscribe({
-                            save.setText(R.string.password_saved)
-                            onDone?.invoke(this@UICreatePassword)
-                          }, {
-                            save.isEnabled = true
-                            title.isEnabled = true
-                            password.isEnabled = true
-                            save.setText(R.string.password_save_failed)
-                          })
+                val passwordData =
+                  Password.create(
+                    title.text.toString(),
+                    website.text?.toString(),
+                    username.text?.toString(),
+                    password.text.toString()
+                  )
 
+                activity.disposeOnDestroy(
+                  Jobs.schedule(
+                    activity, App.Components.Storage.secrets()
+                      .save(passwordData).ignoreElement()
+                  ) {
+                    if (Build.VERSION.SDK_INT >= 28) {
+                      setImportantWhileForeground(true)
+                    } else {
+                      setMinimumLatency(0)
+                    }
+                    setOverrideDeadline(0)
+                  }.second.observeOn(AndroidSchedulers.mainThread())
+                    .subscribe({
+                      mainThreadOnly {
+                        Log.v(this@UICreatePassword) { text("Password saved") }
+                        save.setText(R.string.password_saved)
+                        onDone?.invoke(this@UICreatePassword)
                       }
-                  } else {
-                    save.isEnabled = true
-                    title.isEnabled = true
-                    password.isEnabled = true
-                    save.setText(R.string.password_saving_failed_keyguard)
-                  }
+                    }, {
+                      mainThreadOnly {
+                        Log.v(this@UICreatePassword) { text("Password failed to save"); error(it) }
+                        save.isEnabled = true
+                        title.isEnabled = true
+                        password.isEnabled = true
+                        save.setText(R.string.password_save_failed)
+                      }
+                    }),
 
-                }
-              })
-          }
+                  Jobs.schedule(
+                    activity, App.Components.Storage.backups()
+                      .backup(passwordData)
+                  ) {
+                    if (Build.VERSION.SDK_INT >= 28) {
+                      setImportantWhileForeground(true)
+                    } else {
+                      setMinimumLatency(0)
+                    }
+                    setOverrideDeadline(0)
+                  }.second.observeOn(AndroidSchedulers.mainThread())
+                    .subscribe({
+                      mainThreadOnly {
+                        Log.v(this@UICreatePassword) { text("Backuped password") }
+                      }
+                    }, {
+                      mainThreadOnly {
+                        Log.v(this@UICreatePassword) { text("Password backup failed"); error(it) }
+                      }
+                    })
+                )
+              } else {
+                save.isEnabled = true
+                title.isEnabled = true
+                password.isEnabled = true
+                save.setText(R.string.password_saving_failed_keyguard)
+              }
 
+            }
+          })
       }
   }
 

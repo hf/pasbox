@@ -32,7 +32,6 @@ import android.os.Build
 import android.os.PersistableBundle
 import io.reactivex.Completable
 import io.reactivex.Single
-import io.reactivex.schedulers.Schedulers
 import me.stojan.pasbox.App
 import me.stojan.pasbox.dev.workerThreadOnly
 import me.stojan.pasbox.jobs.Job
@@ -62,7 +61,7 @@ object SaveDeviceIDJob : Job {
               .build()
               .toByteArray()
           }
-        }).subscribeOn(Schedulers.newThread())
+        })
 
   fun info(token: String): JobInfo = JobInfo.Builder(id, JobService.ComponentName)
     .setOverrideDeadline(1000)

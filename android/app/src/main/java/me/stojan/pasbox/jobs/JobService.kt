@@ -28,6 +28,7 @@ package me.stojan.pasbox.jobs
 import android.app.job.JobParameters
 import io.reactivex.android.schedulers.AndroidSchedulers
 import io.reactivex.disposables.Disposable
+import io.reactivex.schedulers.Schedulers
 import me.stojan.pasbox.dev.Log
 import me.stojan.pasbox.dev.mainThreadOnly
 
@@ -58,6 +59,7 @@ class JobService : android.app.job.JobService() {
   override fun onStartJob(params: JobParameters): Boolean =
     JobRegistry.findForId(params.jobId).let { job ->
       runningJobs[params] = job.run(this@JobService, params)
+        .subscribeOn(Schedulers.io())
         .observeOn(AndroidSchedulers.mainThread())
         .doOnDispose {
           jobFinished(params, false)

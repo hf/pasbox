@@ -36,4 +36,5 @@ interface StorageComponent {
   fun database(): Single<SQLiteDatabase>
   fun kvstore(): KVStore
   fun secrets(): SecretStore
+  fun backups(): BackupStore
 }

@@ -37,7 +37,6 @@ import android.widget.TextView
 import com.google.android.material.textfield.TextInputEditText
 import io.reactivex.Single
 import io.reactivex.android.schedulers.AndroidSchedulers
-import io.reactivex.schedulers.Schedulers
 import me.stojan.pasbox.App
 import me.stojan.pasbox.R
 import me.stojan.pasbox.dev.mainThreadOnly
@@ -133,20 +132,15 @@ class UISecretPassword @JvmOverloads constructor(
             open.setText(R.string.password_opening)
 
             disposeOnRecycle(App.Components.Storage.secrets()
-              .open(Single.just(Pair(public, secret)).subscribeOn(Schedulers.io()))
-              .subscribe { open ->
-                // put open.cipher in fingerpirnt manager
+              .open(Single.just(Pair(public, secret)))
+              .observeOn(AndroidSchedulers.mainThread())
+              .subscribe { (public, private) ->
 
                 if (!recycled) {
-                  disposeOnRecycle(open.execute().subscribeOn(Schedulers.io())
-                    .observeOn(AndroidSchedulers.mainThread())
-                    .subscribe { data ->
-                      TransitionManager.beginDelayedTransition(parent as ViewGroup)
-                      opened.visibility = View.VISIBLE
-                      password.setText(data.second.password.password)
-                      autoclose()
-                    }
-                  )
+                  TransitionManager.beginDelayedTransition(parent as ViewGroup)
+                  opened.visibility = View.VISIBLE
+                  password.setText(private.password.password)
+                  autoclose()
                 }
               })
           } else {

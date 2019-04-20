@@ -33,7 +33,9 @@ import com.google.protobuf.asByteString
 import io.reactivex.Single
 import io.reactivex.schedulers.Schedulers
 import io.reactivex.subjects.PublishSubject
-import me.stojan.pasbox.dev.*
+import me.stojan.pasbox.dev.doFinal
+import me.stojan.pasbox.dev.query
+import me.stojan.pasbox.dev.workerThreadOnly
 import java.security.Key
 import java.security.KeyStore
 import javax.crypto.Cipher
@@ -79,129 +81,102 @@ class SQLiteSecretStore(db: Single<SQLiteDatabase>) : SecretStore {
     }
   }.cache()
 
-  private inner class AESGCMNoPad96Open(key: Key, override val data: Pair<SecretPublic, Secret>) : SecretStore.Open() {
-    override val cipher: Cipher = Cipher.getInstance("AES/GCM/NoPadding")
-      .apply {
-        init(Cipher.DECRYPT_MODE, key, GCMParameterSpec(128, data.second.aesGcmNopad96.toByteArray()))
-      }
-
-    override fun execute(): Single<Pair<SecretPublic, SecretPrivate>> =
-      Single.fromCallable {
+  override fun open(data: Single<Pair<SecretPublic, Secret>>) =
+    data
+      .subscribeOn(Schedulers.io())
+      .map { (public, secret) ->
         workerThreadOnly {
-          cipher.updateAAD(data.first.id.toByteArray())
-          cipher.updateAAD(data.second.public.toByteArray())
+          KeyStore.getInstance("AndroidKeyStore")
+            .run {
+              load(null)
 
-          val private = SecretPrivate.parseFrom(cipher.doFinal(data.second.private.toByteArray()))
-
-          Pair(data.first, private)
+              Pair(public, SecretPrivate.parseFrom(getKey("user-secrets-aead", null)!!.let { key ->
+                Cipher.getInstance("AES/GCM/NoPadding").run {
+                  init(Cipher.DECRYPT_MODE, key, GCMParameterSpec(128, secret.aesGcmNopad96.asByteArray()))
+                  updateAAD(secret.id.asByteArray())
+                  updateAAD(secret.public.asByteArray())
+                  doFinal(secret.private.asByteArray())
+                }
+              }))
+            }
         }
       }
 
-  }
+  override fun save(data: Single<Pair<SecretPublic, SecretPrivate>>) =
+    data.flatMap { data ->
+      val public = data.first
+      val private = data.second
 
-  private inner class AESGCMNoPad96Save(key: Key, override val data: Pair<SecretPublic, SecretPrivate>) :
-    SecretStore.Save() {
-    override val cipher: Cipher = Cipher.getInstance("AES/GCM/NoPadding")
-      .apply {
-        init(Cipher.ENCRYPT_MODE, key)
-      }
-
-    override fun execute(): Single<Secret> =
-      Single.fromCallable {
+      db.map { (db, dbKey) ->
         workerThreadOnly {
-          val public = data.first.toByteArray()
-          val private = data.second.toByteArray()
+          val insert = db.compileStatement("INSERT INTO secrets (uuid, value) VALUES (?, ?);")
 
-          cipher.updateAAD(data.second.id.asByteArray()) // only set the private ID here
-          cipher.updateAAD(public)
+          KeyStore.getInstance("AndroidKeyStore")
+            .run {
+              load(null)
 
-          Secret.newBuilder()
-            .setAesGcmNopad96(cipher.iv.asByteString())
-            .setId(data.first.id) // cryptographically makes sure that the public and private IDs are the same
-            .setPublic(public.asByteString())
-            .setPrivate(cipher.doFinal(private).asByteString())
-            .build()
-        }
-      }.flatMap { secret ->
-        db.map { (db, key) ->
-          secret.toByteArray().use { secretBytes ->
-            db.compileStatement("INSERT OR REPLACE INTO secrets (uuid, value, modified_at) VALUES (?, ?, ?);")
-              .apply {
-                val uuid = secret.id.asByteArray()
-
-                bindBlob(1, uuid)
-                bindLong(3, System.currentTimeMillis() / 1000)
-                Cipher.getInstance("AES/GCM/NoPadding")
-                  .apply {
-                    init(Cipher.ENCRYPT_MODE, key)
-
-                    updateAAD(uuid)
-                    bindBlob(
-                      2,
-                      SQLiteSecret.newBuilder()
-                        .setAesGcmNopad96(this.iv.asByteString())
-                        .setAeadId(true)
-                        .setSecret(doFinal(secretBytes).asByteString())
-                        .build()
-                        .toByteArray()
-                    )
-                  }
-              }
-              .executeInsert()
-          }
-
-          changes.onNext(Pair(data.first, secret))
-        }.flatMap { Single.just(secret) }
-      }
-        .subscribeOn(Schedulers.io())
-  }
-
-  override fun open(data: Single<Pair<SecretPublic, Secret>>): Single<SecretStore.Open> =
-    data.map { data ->
-      workerThreadOnly {
-        KeyStore.getInstance("AndroidKeyStore")
-          .run {
-            load(null)
-
-            AESGCMNoPad96Open(getKey("secrets-user-aead", null), data)
-          }
-      }
-    }
-
-  override fun save(data: Single<Pair<SecretPublic, SecretPrivate>>): Single<SecretStore.Save> =
-    data.map { data ->
-      workerThreadOnly {
-        KeyStore.getInstance("AndroidKeyStore")
-          .run {
-            load(null)
-
-            AESGCMNoPad96Save(getKey("secrets-user-aead", null).let { key ->
-              if (null == key) {
-                Log.v(this@SQLiteSecretStore) { text("Generating new key") }
-
-                KeyGenerator.getInstance("AES", "AndroidKeyStore")
-                  .apply {
+              getKey("user-secrets-aead", null).let { key ->
+                key ?: KeyGenerator.getInstance("AES", "AndroidKeyStore")
+                  .run {
                     init(
                       KeyGenParameterSpec.Builder(
-                        "secrets-user-aead",
+                        "user-secrets-aead",
                         KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT
                       )
                         .setKeySize(256)
+                        .setRandomizedEncryptionRequired(true)
                         .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
                         .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
-                        .setRandomizedEncryptionRequired(true)
                         .setUserAuthenticationRequired(true)
                         .setUserAuthenticationValidityDurationSeconds(5)
                         .build()
                     )
+                    generateKey()
                   }
-                  .generateKey()
-              } else {
-                Log.v(this@SQLiteSecretStore) { text("Loading key") }
-                key
+              }.let { key ->
+                val privateBS = private.toByteString()
+                val publicBS = public.toByteString()
+
+                Cipher.getInstance("AES/GCM/NoPadding").run {
+                  init(Cipher.ENCRYPT_MODE, key)
+
+                  updateAAD(private.id.asByteArray())
+                  updateAAD(publicBS.asByteArray())
+
+                  Secret.newBuilder()
+                    .setAesGcmNopad96(iv.asByteString())
+                    .setId(public.id)
+                    .setPublic(publicBS)
+                    .setPrivate(doFinal(privateBS.asByteArray()).asByteString())
+                    .build()
+                }
+              }.let { secret ->
+                Cipher.getInstance("AES/GCM/NoPadding").run {
+                  init(Cipher.ENCRYPT_MODE, dbKey)
+
+                  updateAAD(private.id.asByteArray())
+
+                  SecretContainer.newBuilder()
+                    .setAesGcmNopad96(iv.asByteString())
+                    .setSecret(doFinal(secret.toByteArray()).asByteString())
+                    .build()
+                    .toByteArray()
+                    .let { container ->
+                      insert.run {
+                        clearBindings()
+                        bindBlob(1, public.id.asByteArray())
+                        bindBlob(2, container)
+                        executeInsert()
+                      }
+
+                      changes.onNext(Pair(public, secret))
+                    }
+                }
               }
-            }, data)
-          }
+            }
+
+          data
+        }
       }
     }
 
@@ -225,7 +200,7 @@ class SQLiteSecretStore(db: Single<SQLiteDatabase>) : SecretStore {
               .apply {
                 do {
                   val secret = Secret.parseFrom(
-                    SQLiteSecret.parseFrom(cursor.getBlob(valueIndex))
+                    SecretContainer.parseFrom(cursor.getBlob(valueIndex))
                       .let { container ->
                         Cipher.getInstance("AES/GCM/NoPadding")
                           .run {
@@ -235,9 +210,7 @@ class SQLiteSecretStore(db: Single<SQLiteDatabase>) : SecretStore {
                               GCMParameterSpec(128, container.aesGcmNopad96.asByteArray())
                             )
 
-                            if (container.aeadId) {
-                              updateAAD(cursor.getBlob(uuidIndex))
-                            }
+                            updateAAD(cursor.getBlob(uuidIndex))
 
                             doFinal(container.secret)
                           }

@@ -27,7 +27,6 @@ package me.stojan.pasbox.storage.secrets
 
 import com.google.protobuf.asByteString
 import io.reactivex.Single
-import io.reactivex.schedulers.Schedulers
 import me.stojan.pasbox.dev.workerThreadOnly
 import me.stojan.pasbox.signature.DeviceSignature
 import me.stojan.pasbox.storage.SecretPrivate
@@ -100,6 +99,6 @@ object Password {
 
         Pair(public, private)
       }
-    }.subscribeOn(Schedulers.io())
+    }.cache()
 
 }

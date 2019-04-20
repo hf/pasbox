@@ -148,7 +148,6 @@ class UIActivity(val app: App = App.Current) : AppActivity() {
       .subscribe { attestation ->
         mainThreadOnly {
           if (!attestation.ctsProfileMatch) {
-            Log.v(this@UIActivity) { text("Insecure device detected") }
             adapter.presentTop(UIRecyclerAdapter.Top.simple(R.layout.card_insecure_device))
           } else {
             adapter.dismissTop(R.layout.card_insecure_device)
@@ -168,29 +167,33 @@ class UIActivity(val app: App = App.Current) : AppActivity() {
       } else {
         adapter.dismissTop(R.layout.card_setup_keyguard)
 
-        getSystemService(FingerprintManager::class.java).let { fingerprints ->
-          if (fingerprints.isHardwareDetected) {
-            if (!fingerprints.hasEnrolledFingerprints()) {
-              adapter.presentTop(UIRecyclerAdapter.Top.simple(R.layout.card_setup_fingerprint) {
-                val button: Button = it.findViewById(R.id.resolve_error)
-                button.setOnClickListener {
-                  startActivity(
-                    Intent(
-                      if (Build.VERSION.SDK_INT >= 28) {
-                        Settings.ACTION_FINGERPRINT_ENROLL
-                      } else {
-                        Settings.ACTION_SECURITY_SETTINGS
-                      }
+        if (Build.VERSION.SDK_INT < 28) {
+          getSystemService(FingerprintManager::class.java).let { fingerprints ->
+            if (fingerprints.isHardwareDetected) {
+              if (!fingerprints.hasEnrolledFingerprints()) {
+                adapter.presentTop(UIRecyclerAdapter.Top.simple(R.layout.card_setup_fingerprint) {
+                  val button: Button = it.findViewById(R.id.resolve_error)
+                  button.setOnClickListener {
+                    startActivity(
+                      Intent(
+                        if (Build.VERSION.SDK_INT >= 28) {
+                          Settings.ACTION_FINGERPRINT_ENROLL
+                        } else {
+                          Settings.ACTION_SECURITY_SETTINGS
+                        }
+                      )
                     )
-                  )
-                }
-              })
+                  }
+                })
+              } else {
+                adapter.dismissTop(R.layout.card_setup_fingerprint)
+              }
             } else {
               adapter.dismissTop(R.layout.card_setup_fingerprint)
             }
-          } else {
-            adapter.dismissTop(R.layout.card_setup_fingerprint)
           }
+        } else {
+          // TODO: Use BiometricPrompt
         }
       }
     }
