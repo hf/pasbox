@@ -33,9 +33,7 @@ import com.google.protobuf.asByteString
 import io.reactivex.Single
 import io.reactivex.schedulers.Schedulers
 import io.reactivex.subjects.PublishSubject
-import me.stojan.pasbox.dev.doFinal
-import me.stojan.pasbox.dev.query
-import me.stojan.pasbox.dev.workerThreadOnly
+import me.stojan.pasbox.dev.*
 import java.security.Key
 import java.security.KeyStore
 import javax.crypto.Cipher
@@ -47,23 +45,21 @@ class SQLiteSecretStore(db: Single<SQLiteDatabase>) : SecretStore {
   private val changes = PublishSubject.create<Pair<SecretPublic, Secret>>()
   override val modifications = changes
 
-  private val db: Single<Pair<SQLiteDatabase, Key>> = db.map { db ->
-    workerThreadOnly {
-      db.execSQL("CREATE TABLE IF NOT EXISTS secrets (id INTEGER PRIMARY KEY, uuid BLOB NOT NULL UNIQUE, value BLOB NOT NULL, created_at INTEGER NOT NULL DEFAULT CURRENT_TIMESTAMP, modified_at INTEGER NOT NULL DEFAULT CURRENT_TIMESTAMP);")
-      db.execSQL("CREATE INDEX IF NOT EXISTS idx_secrets_modified_at_created_at ON secrets (modified_at DESC, created_at DESC);")
+  private val db: Single<Pair<SQLiteDatabase, Key>> =
+    db.map { db ->
+      workerThreadOnly {
+        db.execSQL("CREATE TABLE IF NOT EXISTS secrets (id INTEGER PRIMARY KEY, uuid BLOB NOT NULL UNIQUE, value BLOB NOT NULL, created_at INTEGER NOT NULL DEFAULT CURRENT_TIMESTAMP, modified_at INTEGER NOT NULL DEFAULT CURRENT_TIMESTAMP);")
+        db.execSQL("CREATE INDEX IF NOT EXISTS idx_secrets_modified_at_created_at ON secrets (modified_at DESC, created_at DESC);")
 
-      Pair(db, KeyStore.getInstance("AndroidKeyStore")
-        .run {
+        KeyStore.getInstance("AndroidKeyStore")!!.run {
           load(null)
 
-          val key = getKey("secrets-binder-aead", null)
-
-          if (null == key) {
-            KeyGenerator.getInstance("AES", "AndroidKeyStore")
-              .apply {
+          getKey("secrets-binder-aes-gcm", null).let { key ->
+            key ?: KeyGenerator.getInstance("AES", "AndroidKeyStore")
+              .run {
                 init(
                   KeyGenParameterSpec.Builder(
-                    "secrets-binder-aead",
+                    "secrets-binder-aes-gcm",
                     KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT
                   )
                     .setKeySize(256)
@@ -72,14 +68,14 @@ class SQLiteSecretStore(db: Single<SQLiteDatabase>) : SecretStore {
                     .setRandomizedEncryptionRequired(true)
                     .build()
                 )
+                generateKey()
               }
-              .generateKey()
-          } else {
-            key
           }
-        })
-    }
-  }.cache()
+        }.let { key ->
+          Pair(db, key)
+        }
+      }
+    }.cache()
 
   override fun open(data: Single<Pair<SecretPublic, Secret>>) =
     data
@@ -90,14 +86,18 @@ class SQLiteSecretStore(db: Single<SQLiteDatabase>) : SecretStore {
             .run {
               load(null)
 
-              Pair(public, SecretPrivate.parseFrom(getKey("user-secrets-aead", null)!!.let { key ->
+              getKey("user-secrets-aead", null)!!.let { key ->
                 Cipher.getInstance("AES/GCM/NoPadding").run {
                   init(Cipher.DECRYPT_MODE, key, GCMParameterSpec(128, secret.aesGcmNopad96.asByteArray()))
-                  updateAAD(secret.id.asByteArray())
-                  updateAAD(secret.public.asByteArray())
-                  doFinal(secret.private.asByteArray())
+                  updateAAD(secret.id)
+                  updateAAD(secret.public)
+                  doFinal(secret.private)
+                }.let {
+                  SecretPrivate.parseFrom(it)
                 }
-              }))
+              }
+            }.let { private ->
+              Pair(public, private)
             }
         }
       }
@@ -140,21 +140,21 @@ class SQLiteSecretStore(db: Single<SQLiteDatabase>) : SecretStore {
                 Cipher.getInstance("AES/GCM/NoPadding").run {
                   init(Cipher.ENCRYPT_MODE, key)
 
-                  updateAAD(private.id.asByteArray())
-                  updateAAD(publicBS.asByteArray())
+                  updateAAD(private.id)
+                  updateAAD(publicBS)
 
                   Secret.newBuilder()
                     .setAesGcmNopad96(iv.asByteString())
                     .setId(public.id)
                     .setPublic(publicBS)
-                    .setPrivate(doFinal(privateBS.asByteArray()).asByteString())
+                    .setPrivate(doFinalBS(privateBS))
                     .build()
                 }
               }.let { secret ->
                 Cipher.getInstance("AES/GCM/NoPadding").run {
                   init(Cipher.ENCRYPT_MODE, dbKey)
 
-                  updateAAD(private.id.asByteArray())
+                  updateAAD(private.id)
 
                   SecretContainer.newBuilder()
                     .setAesGcmNopad96(iv.asByteString())
@@ -180,51 +180,51 @@ class SQLiteSecretStore(db: Single<SQLiteDatabase>) : SecretStore {
       }
     }
 
-  override fun page(query: SecretStore.Query): Single<SecretStore.Page> =
-    db.map { (db, key) ->
+  override fun page(query: SecretStore.Query) =
+    db.map { (db, dbKey) ->
       workerThreadOnly {
-        val total = db.compileStatement("SELECT COUNT(*) FROM secrets;")
-          .simpleQueryForLong()
+        val count = db.compileStatement("SELECT COUNT(*) FROM secrets;")
 
-        db.query {
-          select("id", "uuid", "value", "created_at", "modified_at")
-          from("secrets")
-          orderBy("modified_at DESC")
-          limit(query.count, query.offset)
-        }.use { cursor ->
-          if (cursor.moveToFirst()) {
-            val uuidIndex = cursor.getColumnIndexOrThrow("uuid")
-            val valueIndex = cursor.getColumnIndexOrThrow("value")
+        db.transaction {
+          count.simpleQueryForLong().let { total ->
+            db.query {
+              select("uuid", "value")
+              from("secrets")
+              orderBy("modified_at DESC")
+              limit(query.count, query.offset)
+            }.use { cursor ->
+              if (cursor.moveToFirst()) {
+                val uuidIndex = cursor.getColumnIndexOrThrow("uuid")
+                val valueIndex = cursor.getColumnIndexOrThrow("value")
 
-            SecretStore.Page(total, query.offset, ArrayList<Pair<SecretPublic, Secret>>(cursor.count)
-              .apply {
-                do {
-                  val secret = Secret.parseFrom(
-                    SecretContainer.parseFrom(cursor.getBlob(valueIndex))
-                      .let { container ->
-                        Cipher.getInstance("AES/GCM/NoPadding")
-                          .run {
-                            init(
-                              Cipher.DECRYPT_MODE,
-                              key,
-                              GCMParameterSpec(128, container.aesGcmNopad96.asByteArray())
-                            )
-
-                            updateAAD(cursor.getBlob(uuidIndex))
-
-                            doFinal(container.secret)
-                          }
-                      })
-
-                  val public = SecretPublic.parseFrom(secret.public)
-
-                  add(Pair(public, secret))
-                } while (cursor.moveToNext())
-              })
-          } else {
-            SecretStore.Page(0, query.offset, ArrayList())
+                ArrayList<Pair<ByteArray, ByteArray>>(cursor.count).apply {
+                  do {
+                    add(Pair(cursor.getBlob(uuidIndex), cursor.getBlob(valueIndex)))
+                  } while (cursor.moveToNext())
+                }
+              } else {
+                ArrayList()
+              }
+            }.let { Pair(total, it) }
           }
+        }.let { (total, list) ->
+          list
+            .map { (uuid, value) ->
+              val container = SecretContainer.parseFrom(value)
+              Cipher.getInstance("AES/GCM/NoPadding")
+                .run {
+                  init(Cipher.DECRYPT_MODE, dbKey, GCMParameterSpec(128, container.aesGcmNopad96.asByteArray()))
+                  updateAAD(uuid)
+                  doFinal(container.secret)
+                }
+                .let { Secret.parseFrom(it) }
+                .let { secret ->
+                  Pair(SecretPublic.parseFrom(secret.public), secret)
+                }
+            }
+            .let { SecretStore.Page(total, query.offset, it) }
         }
       }
     }.subscribeOn(Schedulers.io())
+
 }

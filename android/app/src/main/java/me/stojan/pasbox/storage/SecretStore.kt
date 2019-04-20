@@ -31,7 +31,7 @@ import io.reactivex.Single
 interface SecretStore {
   class Query(val offset: Long = 0, val count: Long = 0)
 
-  class Page(val total: Long, val offset: Long, val results: ArrayList<Pair<SecretPublic, Secret>>) {
+  class Page(val total: Long, val offset: Long, val results: List<Pair<SecretPublic, Secret>>) {
     val count: Int = results.size
   }
 

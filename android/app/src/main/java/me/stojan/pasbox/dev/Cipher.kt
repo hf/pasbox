@@ -26,6 +26,7 @@
 package me.stojan.pasbox.dev
 
 import com.google.protobuf.ByteString
+import com.google.protobuf.asByteString
 import com.google.protobuf.peek
 import javax.crypto.Cipher
 
@@ -55,4 +56,7 @@ fun Cipher.doFinal(byteString: ByteString) =
   byteString.peek { bytes, offset, length ->
     doFinal(bytes, offset, length)
   }
+
+inline fun Cipher.doFinalBS(byteString: ByteString): ByteString =
+  doFinal(byteString).asByteString()
 

@@ -51,7 +51,7 @@ class SQLiteKVStore(db: Single<SQLiteDatabase>) : KVStore {
         "CREATE TABLE IF NOT EXISTS kvstore (id INTEGER PRIMARY KEY, value BLOB DEFAULT NULL, created_at INTEGER DEFAULT CURRENT_TIMESTAMP, modified_at INTEGER DEFAULT CURRENT_TIMESTAMP);"
       )
 
-      val macKey = KeyStore.getInstance("AndroidKeyStore")!!.run {
+      Pair(db, KeyStore.getInstance("AndroidKeyStore")!!.run {
         load(null)
 
         getKey("kvstore-binder-aead", null).let { key ->
@@ -77,9 +77,7 @@ class SQLiteKVStore(db: Single<SQLiteDatabase>) : KVStore {
             key
           }
         }
-      }
-
-      Pair(db, macKey)
+      })
     }
   }.cache()
 
@@ -95,65 +93,78 @@ class SQLiteKVStore(db: Single<SQLiteDatabase>) : KVStore {
   })
 
   override fun put(key: Int, value: Single<ByteArray>): Completable =
-    value.flatMapCompletable { bytes ->
-      db.flatMapCompletable { (db, dbKey) ->
-        Completable.fromCallable {
-          workerThreadOnly {
-            db.compileStatement("INSERT OR REPLACE INTO kvstore (id, value, modified_at) VALUES (?, ?, ?);")
-              .apply {
-                val now = System.currentTimeMillis() / 1000
+    value.map { bytes ->
+      db.map { (db, dbKey) ->
+        workerThreadOnly {
+          val insert = db.compileStatement("INSERT OR REPLACE INTO kvstore (id, value, modified_at) VALUES (?, ?, ?);")
 
+          Cipher.getInstance("AES/GCM/NoPadding")
+            .run {
+              init(Cipher.ENCRYPT_MODE, dbKey)
+
+              updateAAD(key)
+
+              KVContainer.newBuilder()
+                .setAesGcmNopad96(iv.asByteString())
+                .setValue(doFinalBS(
+                  ByteArray16.use { padding ->
+                    KVPadding.newBuilder()
+                      .setPadding(padding.asByteString())
+                      .setValue(bytes.asByteString())
+                      .build()
+                      .toByteString()
+                  }
+                ))
+                .build()
+                .toByteArray()
+            }
+            .let { container ->
+              insert.apply {
                 bindLong(1, key.toLong())
+                bindBlob(2, container)
+                bindLong(3, System.currentTimeMillis() / 1000)
+                executeInsert()
+              }
+            }
 
-                bindBlob(2, Cipher.getInstance("AES/GCM/NoPadding").run {
-                  init(Cipher.ENCRYPT_MODE, dbKey)
-                  updateAAD(key) // key must be Int here!!
-                  parameters
-                  SQLiteKVStoreValue.newBuilder()
-                    .setAesGcmNopad96(iv!!.asByteString())
-                    .setAeadKey(true)
-                    .setValue(doFinal(bytes).asByteString())
-                    .build()
-                }.toByteArray())
-
-                bindLong(3, now)
-              }.executeInsert()
-
-            changes.onNext(Pair(key, bytes))
-          }
+          changes.onNext(Pair(key, bytes))
         }
-      }.subscribeOn(Schedulers.io())
-    }
+      }
+    }.ignoreElement()
 
   override fun get(key: Int): Maybe<ByteArray> =
     db.flatMapMaybe { (db, dbKey) ->
       Maybe.fromCallable<ByteArray> {
         workerThreadOnly {
-          db.query { select("id", "value"); from("kvstore"); where("id = ?"); args(key); limit(1) }
-            .use { cursor ->
-              if (!cursor.moveToFirst()) {
+          db.query {
+            select("id", "value")
+            from("kvstore")
+            where("id = ?")
+            args(key)
+            limit(1)
+          }.use { cursor ->
+            if (!cursor.moveToFirst()) {
+              null
+            } else {
+              val valueIndex = cursor.getColumnIndexOrThrow("value")
+
+              if (cursor.isNull(valueIndex)) {
                 null
               } else {
-                val valueIndex = cursor.getColumnIndexOrThrow("value")
+                val value = cursor.getBlob(valueIndex)
 
-                if (cursor.isNull(valueIndex)) {
-                  null
-                } else {
-                  val value = cursor.getBlob(valueIndex)
-
-                  SQLiteKVStoreValue.parseFrom(value.asByteString())
-                    .let { value ->
-                      Cipher.getInstance("AES/GCM/NoPadding").run {
-                        init(Cipher.DECRYPT_MODE, dbKey, GCMParameterSpec(128, value.aesGcmNopad96.asByteArray()))
-                        if (value.aeadKey) {
-                          updateAAD(key) // key must be Int here!
-                        }
-                        doFinal(value.value)
-                      }
+                KVContainer.parseFrom(value.asByteString())
+                  .let { container ->
+                    Cipher.getInstance("AES/GCM/NoPadding").run {
+                      init(Cipher.DECRYPT_MODE, dbKey, GCMParameterSpec(128, container.aesGcmNopad96.asByteArray()))
+                      doFinal(container.value)
                     }
-                }
+                  }
+                  .let { KVPadding.parseFrom(it) }
+                  .let { it.value.asByteArray() }
               }
             }
+          }
         }
       }
     }.subscribeOn(Schedulers.io())
@@ -171,17 +182,15 @@ class SQLiteKVStore(db: Single<SQLiteDatabase>) : KVStore {
       .filter { workerThreadOnly { key == it.first && (null != it.second || nulls) } }
 
   override fun del(key: Int): Completable =
-    db.flatMapCompletable { (db, _) ->
-      Completable.fromCallable {
-        workerThreadOnly {
-          db.compileStatement("UPDATE kvstore SET value = NULL, modified_at = CURRENT_TIMESTAMP WHERE id = ?;")
-            .apply {
-              bindLong(1, key.toLong())
-            }
-            .executeUpdateDelete()
+    db.map { (db, _) ->
+      workerThreadOnly {
+        db.compileStatement("UPDATE kvstore SET value = NULL, modified_at = CURRENT_TIMESTAMP WHERE id = ?;")
+          .apply {
+            bindLong(1, key.toLong())
+            executeUpdateDelete()
+          }
 
-          changes.onNext(Pair(key, null))
-        }
+        changes.onNext(Pair(key, null))
       }
-    }.subscribeOn(Schedulers.io())
+    }.ignoreElement()
 }

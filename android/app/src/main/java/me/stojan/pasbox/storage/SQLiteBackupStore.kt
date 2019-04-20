@@ -18,8 +18,6 @@ import javax.crypto.KeyGenerator
 import javax.crypto.Mac
 import javax.crypto.spec.SecretKeySpec
 
-const val N_NEW_KEYS = 10
-
 class SQLiteBackupStore(db: Single<SQLiteDatabase>) : BackupStore {
 
   private val db = db.map { db ->
@@ -39,7 +37,7 @@ class SQLiteBackupStore(db: Single<SQLiteDatabase>) : BackupStore {
                 .apply {
                   init(
                     KeyGenParameterSpec.Builder(
-                      "backups-binder-aead",
+                      "backups-binder-aes-gcm",
                       KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT
                     )
                       .setKeySize(256)
@@ -69,7 +67,7 @@ class SQLiteBackupStore(db: Single<SQLiteDatabase>) : BackupStore {
 
           getKey("user-restore-aes-gcm", null)!!.let { authenticationKey ->
             Curve25519.getInstance(Curve25519.BEST).run {
-              (0 until N_NEW_KEYS).map {
+              (0 until 10).map {
                 generateKeyPair()
               }.map {
                 RestoreKey.newBuilder()
