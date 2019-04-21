@@ -84,7 +84,7 @@ class SQLiteKVStore(db: Single<SQLiteDatabase>) : KVStore {
   private val changes = PublishSubject.create<Pair<Int, ByteArray?>>()
 
   override val modifications: Observable<Pair<Int, ByteArray?>>
-    get() = changes
+    get() = changes.observeOn(Schedulers.io())
 
   override fun warmup(): Disposable = db.subscribe({ (_, error) ->
     Log.v(this@SQLiteKVStore) { text("Warmed up.") }
@@ -93,9 +93,10 @@ class SQLiteKVStore(db: Single<SQLiteDatabase>) : KVStore {
   })
 
   override fun put(key: Int, value: Single<ByteArray>): Completable =
-    value.map { bytes ->
+    value.flatMap { bytes ->
       db.map { (db, dbKey) ->
         workerThreadOnly {
+          Log.v(this@SQLiteKVStore) { text("Change"); param("key = ", key) }
           val insert = db.compileStatement("INSERT OR REPLACE INTO kvstore (id, value, modified_at) VALUES (?, ?, ?);")
 
           Cipher.getInstance("AES/GCM/NoPadding")
@@ -157,6 +158,7 @@ class SQLiteKVStore(db: Single<SQLiteDatabase>) : KVStore {
                   .let { container ->
                     Cipher.getInstance("AES/GCM/NoPadding").run {
                       init(Cipher.DECRYPT_MODE, dbKey, GCMParameterSpec(128, container.aesGcmNopad96.asByteArray()))
+                      updateAAD(key)
                       doFinal(container.value)
                     }
                   }
@@ -178,7 +180,7 @@ class SQLiteKVStore(db: Single<SQLiteDatabase>) : KVStore {
     } else {
       Observable.empty()
     }
-      .mergeWith(modifications.observeOn(Schedulers.computation()))
+      .mergeWith(modifications)
       .filter { workerThreadOnly { key == it.first && (null != it.second || nulls) } }
 
   override fun del(key: Int): Completable =
