@@ -62,7 +62,6 @@ class App : Application(), HasComponents {
   }
 
   private fun startup() {
-    disposables.add(components.Storage.kvstore().warmup())
     disposables.add(
       components.Storage.kvstore().watch(KV.DEVICE_ID, nulls = false, get = false).observeOn(
         AndroidSchedulers.mainThread()
