@@ -23,4 +23,4 @@
  *
  */
 
-include ':app'
+include ':app', ':argon2'
