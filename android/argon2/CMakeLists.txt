@@ -6,9 +6,9 @@ add_library(argon2 SHARED
   src/main/cpp/argon2-20171227/src/ref.c # opt.c is optimized for Intel only, so no need
   src/main/cpp/argon2-20171227/src/argon2.c
   src/main/cpp/argon2-20171227/src/core.c
-  src/main/cpp/argon2-20171227/src/thread.c
   src/main/cpp/argon2-20171227/src/encoding.c
   src/main/cpp/argon2-20171227/src/blake2/blake2b.c
+  src/main/cpp/java/thread.c
   src/main/cpp/java/utils.cpp
   src/main/cpp/java/me_stojan_pasbox_argon2_NativeArgon2.cpp)
 
