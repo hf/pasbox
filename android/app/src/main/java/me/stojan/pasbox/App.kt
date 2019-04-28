@@ -48,17 +48,12 @@ class App : Application(), HasComponents {
 
   override fun onCreate() {
     super.onCreate()
+    Log.v(this@App) { text("Created") }
+
     INSTANCE = this
     _components = RuntimeAppComponents(this)
 
-    Log.v(this@App) { text("Created") }
-
-    warmup()
     startup()
-  }
-
-  private fun warmup() {
-    disposables.add(components.Storage.kvstore().warmup())
   }
 
   private fun startup() {
