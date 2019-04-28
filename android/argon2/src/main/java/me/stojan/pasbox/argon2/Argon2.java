@@ -4,6 +4,7 @@ import androidx.annotation.NonNull;
 
 import java.util.Arrays;
 import java.util.Locale;
+import java.util.Objects;
 
 /**
  * Provides a consistent interface to use the Argon2 Password Hashing Function.
@@ -43,11 +44,22 @@ public final class Argon2 {
   }
 
   /**
+   * Obtain an instance of {@link Argon2} for the provided type and version.
+   *
+   * @param type    the type of instance, one of {@link Argon2Engine#ARGON2_TYPE_D}, {@link Argon2Engine#ARGON2_TYPE_I} or {@link Argon2Engine#ARGON2_TYPE_ID}
+   * @param version the version, one of {@link Argon2Engine#ARGON2_VERSION_10} or {@link Argon2Engine#ARGON2_VERSION_13}
+   * @return the Argon2 instance
+   */
+  public static Argon2 getInstance(int type, int version) {
+    return new Argon2(new NativeArgon2(type, version));
+  }
+
+  /**
    * The type of Argon2 configuration.
    *
    * @return one of {@link Argon2Engine#ARGON2_TYPE_I}, {@link Argon2Engine#ARGON2_TYPE_D}, {@link Argon2Engine#ARGON2_TYPE_ID}
    */
-  int type() {
+  public int type() {
     return this.engine.type();
   }
 
@@ -56,7 +68,7 @@ public final class Argon2 {
    *
    * @return one of {@link Argon2Engine#ARGON2_VERSION_10}, {@link Argon2Engine#ARGON2_VERSION_13}
    */
-  int version() {
+  public int version() {
     return this.engine.version();
   }
 
@@ -153,6 +165,19 @@ public final class Argon2 {
     Arrays.fill(hash, (byte) 0);
 
     return 0 == inequalityCount;
+  }
+
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) return true;
+    if (o == null || getClass() != o.getClass()) return false;
+    Argon2 argon2 = (Argon2) o;
+    return engine.equals(argon2.engine);
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(engine);
   }
 
   @NonNull

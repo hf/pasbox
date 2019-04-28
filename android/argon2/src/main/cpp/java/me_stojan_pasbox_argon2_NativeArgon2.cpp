@@ -15,6 +15,11 @@ JNIEXPORT void JNICALL Java_me_stojan_pasbox_argon2_NativeArgon2_nhash(JNIEnv *e
                                                                        jbyteArray password,
                                                                        jbyteArray salt,
                                                                        jbyteArray hash) {
+
+  if (env->ExceptionCheck()) {
+    return;
+  }
+
   jboolean pwdIsCopy = JNI_FALSE;
   auto pwd = env->GetByteArrayElements(password, &pwdIsCopy);
 

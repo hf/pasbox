@@ -32,7 +32,11 @@
 
 #define JNI_ARGON2_THROW(env, code) { \
   if (ARGON2_OK != code) { \
-    JNI_ARGON2_THROW_MSG(env, argon2_error_message(code)); \
+    const auto ____excclass = (env)->FindClass("me/stojan/pasbox/argon2/Argon2Exception"); \
+    const auto ____excconst = (env)->GetMethodID(____excclass, "<init>", "(ILjava/lang/String;)V"); \
+    const auto ____excmsg = (env)->NewStringUTF(argon2_error_message((code))); \
+    const auto ____exobj = (env)->NewObject(____excclass, ____excconst, (code), ____excmsg); \
+    (env)->Throw(static_cast<jthrowable>(____exobj)); \
   } \
 }
 
