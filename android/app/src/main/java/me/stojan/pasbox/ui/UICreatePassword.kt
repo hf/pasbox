@@ -60,7 +60,7 @@ class UICreatePassword @JvmOverloads constructor(
     const val SPECIALS = "!@#$%^&*()-_=+[]{}:?<>~"
   }
 
-  val activity: UIActivity get() = context as UIActivity
+  private val activity: UIActivity get() = context as UIActivity
 
   var onDone: ((UICreatePassword) -> Unit)? = null
 

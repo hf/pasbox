@@ -66,4 +66,8 @@ class AppStorageModule(val app: App) {
   @Provides
   @Singleton
   fun provideBackupStore(db: Single<SQLiteDatabase>): BackupStore = SQLiteBackupStore(db)
+
+  @Provides
+  @Singleton
+  fun provideAccountStore(kv: KVStore): AccountStore = KVAccountStore(kv)
 }

@@ -1,0 +1,90 @@
+syntax = "proto3";
+
+option java_multiple_files = true;
+option java_package = "me.stojan.pasbox.storage";
+
+message Opener {
+  bytes padding = 1;
+
+  oneof key {
+    bytes curve25519_ecdh = 16;
+    bytes curve25519_ecdsa = 17;
+    bytes secp256r1_ecdh = 18;
+    bytes secp256r1_ecdsa = 19;
+    bytes secp521r1_ecdh = 20;
+    bytes secp521r1_ecdsa = 21;
+  }
+}
+
+message OpenerContainer {
+  oneof iv {
+    bytes aes_gcm_nopad_96 = 1;
+  }
+
+  bytes content = 16;
+}
+
+message KDFArgon2 {
+  uint32 type = 1;
+  uint32 version = 2;
+  uint32 t_cost = 3;
+  uint32 m_cost = 4;
+  uint32 parallelism = 5;
+  bytes salt = 6;
+}
+
+message MasterKeys {
+  bytes hkdf1024 = 1;
+
+  bytes secp256r1_ecdh = 16;
+  bytes secp256r1_ecdsa = 17;
+
+  bytes secp521r1_ecdh = 18;
+  bytes secp521r1_ecdsa = 19;
+}
+
+message MasterKeysContainer {
+  oneof iv {
+    bytes aes_gcm_nopad_96 = 1;
+  }
+
+  bytes content = 16;
+}
+
+message Account {
+  bytes id = 1;
+
+  oneof kdf {
+    KDFArgon2 argon2 = 16;
+  }
+
+  bytes keys = 32;
+}
+
+message AccountContainer {
+  oneof iv {
+    bytes aes_gcm_nopad_96 = 1;
+  }
+
+  bytes content = 16;
+}
+
+message AccountRecovery {
+  oneof password {
+    string password_argon2 = 16;
+  }
+
+  oneof kdf {
+    KDFArgon2 kdf_argon2 = 32;
+  }
+
+  MasterKeys keys = 64;
+}
+
+message AccountRecoveryContainer {
+  oneof iv {
+    bytes aes_gcm_nopad_96 = 1;
+  }
+
+  bytes content = 16;
+}

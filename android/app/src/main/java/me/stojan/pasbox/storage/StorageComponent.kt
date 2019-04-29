@@ -37,4 +37,5 @@ interface StorageComponent {
   fun kvstore(): KVStore
   fun secrets(): SecretStore
   fun backups(): BackupStore
+  fun account(): AccountStore
 }

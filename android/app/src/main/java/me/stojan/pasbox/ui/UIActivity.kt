@@ -45,6 +45,7 @@ import me.stojan.pasbox.dev.Log
 import me.stojan.pasbox.dev.mainThreadOnly
 import me.stojan.pasbox.dev.toMaybe
 import me.stojan.pasbox.dev.workerThreadOnly
+import me.stojan.pasbox.jobs.Jobs
 import me.stojan.pasbox.safetynet.SafetyNetAttestation
 import me.stojan.pasbox.storage.KV
 import me.stojan.pasbox.storage.SecretStore
@@ -76,6 +77,7 @@ class UIActivity(val app: App = App.Current) : AppActivity() {
     observeKeyguard()
     observeSafetyNet()
     observeSecrets()
+    observeAccountCreation()
 
     activateFAB()
 
@@ -259,6 +261,55 @@ class UIActivity(val app: App = App.Current) : AppActivity() {
           adapter.update(page)
         }
 
+      }
+    )
+  }
+
+  private fun observeAccountCreation() {
+    disposeOnPause(App.Components.Storage.kvstore().get(KV.ACCOUNT_RECOVERY)
+      .isEmpty
+      .observeOn(AndroidSchedulers.mainThread())
+      .subscribe { noAccountRecovery ->
+        Log.v(this@UIActivity) {
+          text("Account recovery")
+          param("present", !noAccountRecovery)
+        }
+
+        if (noAccountRecovery) {
+          adapter.presentTopImportant(UIRecyclerAdapter.Top.simple(R.layout.card_new_account_setup))
+
+          Jobs.schedule(this@UIActivity, App.Components.Storage.account().new()) {
+            setMinimumLatency(0)
+
+            if (Build.VERSION.SDK_INT >= 28) {
+              setImportantWhileForeground(true)
+            }
+          }.let {
+            disposeOnDestroy(it.second
+              .observeOn(AndroidSchedulers.mainThread())
+              .subscribe({
+                Log.v(this@UIActivity) {
+                  text("New account has been setup")
+                }
+
+                mainThreadOnly {
+                  adapter.dismissTop(R.layout.card_new_account_setup)
+                }
+              }, { error ->
+                Log.e(this@UIActivity) {
+                  text("New account has not been setup")
+                  error(error)
+                }
+
+                mainThreadOnly {
+                  adapter.dismissTop(R.layout.card_new_account_setup)
+                }
+              })
+            )
+          }
+        } else {
+          adapter.dismissTop(R.layout.card_new_account_setup)
+        }
       }
     )
   }

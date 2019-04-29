@@ -26,6 +26,16 @@
 package me.stojan.pasbox.storage
 
 object KV {
+  const val ACCOUNT_RECOVERY = 512
+  const val ACCOUNT = 513
+
   const val DEVICE_ID = 1024
   const val SAFETY_NET_ATTESTATION = 2048
+
+  const val MASTER_KEY_ECDH_CURVE25519 = 3096
+  const val MASTER_KEY_ECDSA_CURVE25519 = 3097
+  const val MASTER_KEY_ECDH_SECP256R1 = 3098
+  const val MASTER_KEY_ECDSA_SCEP256R1 = 3099
+  const val MASTER_KEY_ECDH_SECP521R1 = 3040
+  const val MASTER_KEY_ECDSA_SECP521R1 = 3041
 }

@@ -92,18 +92,17 @@ class SQLiteKVStore(db: Single<SQLiteDatabase>) : KVStore {
     Log.e(this@SQLiteKVStore) { text("Failed to warm up."); error(error); }
   })
 
-  override fun put(key: Int, value: Single<ByteArray>): Completable =
-    value.flatMap { bytes ->
+  override fun put(values: Single<List<Pair<Int, ByteArray>>>): Completable =
+    values.flatMapCompletable { values ->
       db.map { (db, dbKey) ->
         workerThreadOnly {
-          Log.v(this@SQLiteKVStore) { text("Change"); param("key = ", key) }
           val insert = db.compileStatement("INSERT OR REPLACE INTO kvstore (id, value, modified_at) VALUES (?, ?, ?);")
 
-          Cipher.getInstance("AES/GCM/NoPadding")
-            .run {
+          values.map {
+            Triple(it.first, Cipher.getInstance("AES/GCM/NoPadding").run {
               init(Cipher.ENCRYPT_MODE, dbKey)
 
-              updateAAD(key)
+              updateAAD(it.first)
 
               KVContainer.newBuilder()
                 .setAesGcmNopad96(iv.asByteString())
@@ -111,27 +110,39 @@ class SQLiteKVStore(db: Single<SQLiteDatabase>) : KVStore {
                   ByteArray16.use { padding ->
                     KVPadding.newBuilder()
                       .setPadding(padding.asByteString())
-                      .setValue(bytes.asByteString())
+                      .setValue(it.second.asByteString())
                       .build()
                       .toByteString()
                   }
                 ))
                 .build()
                 .toByteArray()
-            }
-            .let { container ->
-              insert.apply {
-                bindLong(1, key.toLong())
-                bindBlob(2, container)
-                bindLong(3, System.currentTimeMillis() / 1000)
-                executeInsert()
+            }, it.second)
+          }.let { ready ->
+            val now = System.currentTimeMillis() / 1000
+
+            db.transaction {
+              ready.forEach {
+                insert.clearBindings()
+                insert.bindLong(1, it.first.toLong())
+                insert.bindBlob(2, it.second)
+                insert.bindLong(3, now)
+                insert.executeInsert()
               }
             }
 
-          changes.onNext(Pair(key, bytes))
+            ready.forEach {
+              changes.onNext(Pair(it.first, it.third))
+            }
+
+          }
         }
-      }
-    }.ignoreElement()
+      }.ignoreElement()
+    }
+
+  override fun put(key: Int, value: Single<ByteArray>): Completable = put(value.map { value ->
+    listOf(Pair(key, value))
+  })
 
   override fun get(key: Int): Maybe<ByteArray> =
     db.flatMapMaybe { (db, dbKey) ->

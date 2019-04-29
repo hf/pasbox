@@ -124,7 +124,7 @@ class SQLiteBackupStore(db: Single<SQLiteDatabase>) : BackupStore {
           KeyStore.getInstance("AndroidKeyStore").run {
             load(null)
 
-            getKey("user-authentication-hmac256", null).let { authentication ->
+            getKey("user-authentication-hmac-sha256", null).let { authentication ->
               db.transaction {
                 db.query {
                   from("backup_keys")

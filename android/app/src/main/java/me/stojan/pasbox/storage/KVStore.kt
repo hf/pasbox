@@ -35,6 +35,7 @@ interface KVStore {
   val modifications: Observable<Pair<Int, ByteArray?>>
 
   fun put(key: Int, value: Single<ByteArray>): Completable
+  fun put(values: Single<List<Pair<Int, ByteArray>>>): Completable
   fun get(key: Int): Maybe<ByteArray>
   fun del(key: Int): Completable
 
