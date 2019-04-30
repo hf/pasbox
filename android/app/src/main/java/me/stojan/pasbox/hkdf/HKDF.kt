@@ -1,263 +1,61 @@
 package me.stojan.pasbox.hkdf
 
+import java.security.Key
 import javax.crypto.Mac
 import javax.crypto.spec.SecretKeySpec
 
 object HKDF {
   val USER_AUTHENTICATON_HMAC_SHA256 = byteArrayOf(
-    0x83.toByte(),
-    0xf5.toByte(),
-    0xc9.toByte(),
-    0x61.toByte(),
-    0x5.toByte(),
-    0x1d.toByte(),
-    0xbe.toByte(),
-    0x30.toByte(),
-    0xba.toByte(),
-    0x78.toByte(),
-    0x8.toByte(),
-    0x6a.toByte(),
-    0x7b.toByte(),
-    0x7d.toByte(),
-    0xb.toByte(),
-    0x81.toByte(),
-    0xef.toByte(),
-    0xf4.toByte(),
-    0x3e.toByte(),
-    0x5.toByte(),
-    0x10.toByte(),
-    0xd3.toByte(),
-    0xa8.toByte(),
-    0xd4.toByte(),
-    0x53.toByte(),
-    0x7c.toByte(),
-    0x9f.toByte(),
-    0x74.toByte(),
-    0xff.toByte(),
-    0x86.toByte(),
-    0xb.toByte(),
-    0xad.toByte()
-  )
-
-  val USER_AUTHENTICATION_HMAC_SHA512 = byteArrayOf(
-    0x1f.toByte(),
-    0x58.toByte(),
-    0xef.toByte(),
-    0x92.toByte(),
-    0x9a.toByte(),
-    0x43.toByte(),
-    0x92.toByte(),
-    0xa8.toByte(),
-    0x39.toByte(),
-    0x31.toByte(),
-    0x88.toByte(),
-    0x19.toByte(),
-    0x2f.toByte(),
-    0xec.toByte(),
-    0xac.toByte(),
-    0x0.toByte(),
-    0xa3.toByte(),
-    0x5f.toByte(),
-    0xe5.toByte(),
-    0x11.toByte(),
-    0x18.toByte(),
-    0xa0.toByte(),
-    0x8b.toByte(),
-    0x82.toByte(),
-    0xea.toByte(),
-    0xf0.toByte(),
-    0x4a.toByte(),
-    0x7a.toByte(),
-    0x5a.toByte(),
-    0xbc.toByte(),
-    0x39.toByte(),
-    0x6.toByte(),
-    0x8a.toByte(),
-    0xfb.toByte(),
-    0xbf.toByte(),
-    0x6.toByte(),
-    0xbd.toByte(),
-    0x5a.toByte(),
-    0xff.toByte(),
-    0x92.toByte(),
-    0x3b.toByte(),
-    0x7b.toByte(),
-    0x78.toByte(),
-    0x5.toByte(),
-    0x4e.toByte(),
-    0x64.toByte(),
-    0xe6.toByte(),
-    0x92.toByte(),
-    0xe6.toByte(),
-    0x95.toByte(),
-    0x81.toByte(),
-    0xb.toByte(),
-    0xca.toByte(),
-    0xb1.toByte(),
-    0x2c.toByte(),
-    0x8e.toByte(),
-    0xda.toByte(),
-    0x67.toByte(),
-    0xd.toByte(),
-    0xd5.toByte(),
-    0xf8.toByte(),
-    0xbe.toByte(),
-    0x2e.toByte(),
-    0x6e.toByte()
+    -2, 81, 40, -102, 45, -82, 101, 104, -2, -115, -49, 19, -86, 18, -41, -77,
+    -9, 111, -52, -48, -84, 70, -98, 126, -95, -123, -64, -46, -64, -17, -42, -8,
+    -111, 114, -11, -57, -86, -128, -71, -57, 126, -82, 0, -12, -48, -56, 30, 91,
+    108, 93, 111, 53, -23, -38, 57, -13, 80, -63, -118, 42, -87, -62, -119, 4
   )
 
   val USER_ECDH_CURVE25519 = byteArrayOf(
-    0xdc.toByte(),
-    0x93.toByte(),
-    0xb9.toByte(),
-    0xc7.toByte(),
-    0x2b.toByte(),
-    0x7f.toByte(),
-    0xf2.toByte(),
-    0x13.toByte(),
-    0x9a.toByte(),
-    0x5f.toByte(),
-    0x44.toByte(),
-    0x4d.toByte(),
-    0xd9.toByte(),
-    0x45.toByte(),
-    0x6d.toByte(),
-    0x30.toByte(),
-    0x39.toByte(),
-    0xa6.toByte(),
-    0xa8.toByte(),
-    0x3a.toByte(),
-    0x64.toByte(),
-    0xa8.toByte(),
-    0xb2.toByte(),
-    0xd6.toByte(),
-    0x8d.toByte(),
-    0xa.toByte(),
-    0x2f.toByte(),
-    0x15.toByte(),
-    0xea.toByte(),
-    0x7d.toByte(),
-    0x36.toByte(),
-    0xc6.toByte()
+    20, -8, 80, -9, -32, -10, -47, -37, 73, 57, -79, -18, -123, 124, 27, 28,
+    112, -29, -67, 5, -92, 112, 102, -34, 9, 115, -112, 112, -70, 72, -56, -65,
+    121, -51, 64, -11, 42, -95, 108, 9, -78, -116, 126, -46, 50, -30, -116, -15,
+    -16, -96, 74, -9, -97, -48, 104, 22, -8, 28, -47, 63, 85, 108, 124, 64
   )
 
   val USER_ECDSA_CURVE25519 = byteArrayOf(
-    0xc5.toByte(),
-    0x21.toByte(),
-    0x12.toByte(),
-    0xb1.toByte(),
-    0xa4.toByte(),
-    0xbc.toByte(),
-    0x8a.toByte(),
-    0x8c.toByte(),
-    0x29.toByte(),
-    0x5.toByte(),
-    0x93.toByte(),
-    0xd2.toByte(),
-    0xc9.toByte(),
-    0x52.toByte(),
-    0x8e.toByte(),
-    0xfb.toByte(),
-    0x14.toByte(),
-    0x2d.toByte(),
-    0x5c.toByte(),
-    0x45.toByte(),
-    0x4f.toByte(),
-    0x5e.toByte(),
-    0x8a.toByte(),
-    0xa8.toByte(),
-    0x83.toByte(),
-    0x9c.toByte(),
-    0x7a.toByte(),
-    0x7d.toByte(),
-    0x88.toByte(),
-    0x46.toByte(),
-    0x24.toByte(),
-    0xb.toByte()
+    -12, -68, -103, -73, 91, 117, -104, 59, 104, -40, -107, 115, -103, -11, -59, 41,
+    -117, 10, -103, 23, 36, -26, 52, -32, 75, 20, -82, -70, 48, 66, -99, 12,
+    57, 68, 24, 8, -99, -76, 120, -89, 73, -31, 65, -73, -46, -114, -53, -27,
+    17, -57, -118, -46, 73, 117, 91, -54, 102, -113, -84, -94, 92, 12, -122, -89
   )
 
   val USER_OPENER_HKDF_SHA256 = byteArrayOf(
-    0xb.toByte(),
-    0x2f.toByte(),
-    0x10.toByte(),
-    0x97.toByte(),
-    0x4a.toByte(),
-    0xb4.toByte(),
-    0xd2.toByte(),
-    0x28.toByte(),
-    0x6d.toByte(),
-    0x3e.toByte(),
-    0x2f.toByte(),
-    0xa1.toByte(),
-    0xda.toByte(),
-    0xc3.toByte(),
-    0x28.toByte(),
-    0x71.toByte(),
-    0xa9.toByte(),
-    0x3a.toByte(),
-    0x6c.toByte(),
-    0x78.toByte(),
-    0xfd.toByte(),
-    0x9b.toByte(),
-    0x2a.toByte(),
-    0xcf.toByte(),
-    0xa5.toByte(),
-    0xb4.toByte(),
-    0x6f.toByte(),
-    0x6e.toByte(),
-    0x2b.toByte(),
-    0x5e.toByte(),
-    0x37.toByte(),
-    0xa8.toByte()
+    88, 29, -106, 75, -60, -37, -102, 1, 11, -27, 69, -39, 27, 17, -83, -91,
+    -104, 91, -107, -17, -6, -101, -8, 105, 33, 120, -92, 82, 15, 86, -91, -107,
+    -112, -73, -89, -34, 66, 100, 68, 116, 68, -90, 21, -85, 43, 115, 109, 56,
+    -52, -36, 2, 1, -6, -116, -16, -3, -73, 118, -10, 11, -28, -90, -119, -25
   )
 
-  val USER_OPENER = byteArrayOf(
-    0x66.toByte(),
-    0xbe.toByte(),
-    0x18.toByte(),
-    0x21.toByte(),
-    0xf5.toByte(),
-    0xb0.toByte(),
-    0x44.toByte(),
-    0xb0.toByte(),
-    0x42.toByte(),
-    0x3a.toByte(),
-    0x50.toByte(),
-    0x10.toByte(),
-    0xb7.toByte(),
-    0x3a.toByte(),
-    0xc0.toByte(),
-    0xeb.toByte(),
-    0x25.toByte(),
-    0x11.toByte(),
-    0xc8.toByte(),
-    0xa8.toByte(),
-    0xb1.toByte(),
-    0x41.toByte(),
-    0xd7.toByte(),
-    0x4c.toByte(),
-    0x62.toByte(),
-    0x41.toByte(),
-    0xd0.toByte(),
-    0xba.toByte(),
-    0x19.toByte(),
-    0x12.toByte(),
-    0x7a.toByte(),
-    0xe3.toByte()
+  val USER_MASTER_KEY_OPENER = byteArrayOf(
+    -8, 95, -10, 95, 89, -25, -35, 66, -42, -62, 11, -16, -41, -114, 127, 73,
+    119, -37, -98, 95, -117, -80, -55, -126, -59, -126, 119, -46, 88, 120, -122, -6,
+    118, -26, 95, -100, 45, 75, -71, -57, -123, 70, 9, 28, 88, -17, 25, 97,
+    48, 5, -100, -57, 103, -88, 117, -98, 66, 91, -113, -89, 22, 14, 8, 94
   )
 
-  fun derive256(secret: ByteArray, data: ByteArray) =
+  fun derive256(key: Key, data: ByteArray) =
     Mac.getInstance("HmacSHA256")
       .run {
-        init(SecretKeySpec(secret, 0, 512 / 8, "HmacSHA256"))
+        init(key)
         doFinal(data)
       }
 
-  fun derive512(secret: ByteArray, data: ByteArray) =
+  fun derive512(key: Key, data: ByteArray) =
     Mac.getInstance("HmacSHA512")
       .run {
-        init(SecretKeySpec(secret, 0, 1024 / 8, "HmacSHA512"))
+        init(key)
         doFinal(data)
       }
+
+  fun derive256(secret: ByteArray, data: ByteArray) = derive256(SecretKeySpec(secret, "HmacSHA256"), data)!!
+
+  fun derive512(secret: ByteArray, data: ByteArray) = derive512(SecretKeySpec(secret, "HmacSHA512"), data)!!
 
 }

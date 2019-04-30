@@ -28,6 +28,7 @@ package me.stojan.pasbox.storage
 import android.database.sqlite.SQLiteDatabase
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
+import com.google.protobuf.ByteString
 import com.google.protobuf.asByteArray
 import com.google.protobuf.asByteString
 import io.reactivex.Completable
@@ -106,15 +107,15 @@ class SQLiteKVStore(db: Single<SQLiteDatabase>) : KVStore {
 
               KVContainer.newBuilder()
                 .setAesGcmNopad96(iv.asByteString())
-                .setValue(doFinalBS(
+                .setValue(
                   ByteArray16.use { padding ->
                     KVPadding.newBuilder()
                       .setPadding(padding.asByteString())
-                      .setValue(it.second.asByteString())
+                      .setValue(ByteString.copyFrom(it.second)) // enciphering will clear the it.second array
                       .build()
-                      .toByteString()
+                      .encipher(this)
                   }
-                ))
+                )
                 .build()
                 .toByteArray()
             }, it.second)

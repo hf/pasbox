@@ -25,10 +25,14 @@
 
 package me.stojan.pasbox.dev
 
+import android.util.SparseArray
 import com.google.protobuf.ByteString
-import com.google.protobuf.asByteString
 import com.google.protobuf.peek
+import me.stojan.pasbox.BuildConfig
+import java.io.OutputStream
+import java.util.*
 import javax.crypto.Cipher
+import javax.crypto.CipherOutputStream
 
 inline fun Cipher.updateAAD(value: Int) {
   ByteArray16.use { aead ->
@@ -57,6 +61,55 @@ fun Cipher.doFinal(byteString: ByteString) =
     doFinal(bytes, offset, length)
   }
 
-inline fun Cipher.doFinalBS(byteString: ByteString): ByteString =
-  doFinal(byteString).asByteString()
+class CleaningCipherOutputStream(os: OutputStream?, c: Cipher?) : CipherOutputStream(os, c) {
+  private val buffers = SparseArray<ByteArray>(15)
 
+  override fun write(b: ByteArray) {
+    checkClean(b, 0, b.size)
+
+    super.write(b)
+
+    buffers.put(System.identityHashCode(b), b)
+  }
+
+  override fun write(b: ByteArray, off: Int, len: Int) {
+    checkClean(b, off, len)
+
+    super.write(b, off, len)
+
+    buffers.put(System.identityHashCode(b), b)
+  }
+
+  override fun close() {
+    super.close()
+
+    for (i in 0 until buffers.size()) {
+      buffers.valueAt(i)?.let { Arrays.fill(it, 0xCC.toByte()) }
+    }
+
+    buffers.clear()
+  }
+
+  private inline fun checkClean(bytes: ByteArray, off: Int, len: Int) {
+    if (BuildConfig.DEBUG) {
+      var ccCount = 0
+
+      for (i in off + 1 until len) {
+        if (0xCC.toByte() == bytes[i] && 0xCC.toByte() == bytes[i - 1]) {
+          ccCount += 1
+        }
+      }
+
+      if (ccCount > len / 4) {
+        Log.w(this) {
+          text("Byte array looks like it was cleaned before being encrypted!")
+        }
+      }
+
+      if (ccCount > len / 2) {
+        throw RuntimeException("Byte array looks like it was cleaned before being encrypted!")
+      }
+    }
+  }
+
+}

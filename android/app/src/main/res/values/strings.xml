@@ -82,5 +82,6 @@
   <string name="password_opening">Opening…</string>
   <string name="password_opening_failed_keyguard">Uh-oh. Touch to try again</string>
   <string name="password_will_close">Password will close in %d seconds…</string>
+  <string name="account_new_setup_in_progress">Your device is preparing your Pasbox account...</string>
 
 </resources>

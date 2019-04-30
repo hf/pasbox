@@ -266,51 +266,54 @@ class UIActivity(val app: App = App.Current) : AppActivity() {
   }
 
   private fun observeAccountCreation() {
-    disposeOnPause(App.Components.Storage.kvstore().get(KV.ACCOUNT_RECOVERY)
-      .isEmpty
-      .observeOn(AndroidSchedulers.mainThread())
-      .subscribe { noAccountRecovery ->
-        Log.v(this@UIActivity) {
-          text("Account recovery")
-          param("present", !noAccountRecovery)
-        }
-
-        if (noAccountRecovery) {
-          adapter.presentTopImportant(UIRecyclerAdapter.Top.simple(R.layout.card_new_account_setup))
-
-          Jobs.schedule(this@UIActivity, App.Components.Storage.account().new()) {
-            setMinimumLatency(0)
-
-            if (Build.VERSION.SDK_INT >= 28) {
-              setImportantWhileForeground(true)
-            }
-          }.let {
-            disposeOnDestroy(it.second
-              .observeOn(AndroidSchedulers.mainThread())
-              .subscribe({
-                Log.v(this@UIActivity) {
-                  text("New account has been setup")
-                }
-
-                mainThreadOnly {
-                  adapter.dismissTop(R.layout.card_new_account_setup)
-                }
-              }, { error ->
-                Log.e(this@UIActivity) {
-                  text("New account has not been setup")
-                  error(error)
-                }
-
-                mainThreadOnly {
-                  adapter.dismissTop(R.layout.card_new_account_setup)
-                }
-              })
-            )
+    disposeOnPause(
+      App.Components.Storage.kvstore().get(KV.ACCOUNT_RECOVERY)
+        .isEmpty
+        .observeOn(AndroidSchedulers.mainThread())
+        .subscribe { noAccountRecovery ->
+          Log.v(this@UIActivity) {
+            text("Account recovery")
+            param("present", !noAccountRecovery)
           }
-        } else {
-          adapter.dismissTop(R.layout.card_new_account_setup)
+
+          if (noAccountRecovery) {
+            adapter.presentTopImportant(UIRecyclerAdapter.Top.simple(R.layout.card_account_new_setup))
+
+            Jobs.schedule(this@UIActivity, App.Components.Storage.account().new()) {
+              if (Build.VERSION.SDK_INT >= 28) {
+                setImportantWhileForeground(true)
+              } else {
+                setMinimumLatency(0)
+              }
+              setOverrideDeadline(0)
+            }.let {
+              disposeOnDestroy(
+                it.second
+                  .observeOn(AndroidSchedulers.mainThread())
+                  .subscribe({
+                    Log.v(this@UIActivity) {
+                      text("New account has been setup")
+                    }
+
+                    mainThreadOnly {
+                      adapter.dismissTop(R.layout.card_account_new_setup)
+                    }
+                  }, { error ->
+                    Log.e(this@UIActivity) {
+                      text("New account has not been setup")
+                      error(error)
+                    }
+
+                    mainThreadOnly {
+                      adapter.dismissTop(R.layout.card_account_new_setup)
+                    }
+                  })
+              )
+            }
+          } else {
+            adapter.dismissTop(R.layout.card_account_new_setup)
+          }
         }
-      }
     )
   }
 }

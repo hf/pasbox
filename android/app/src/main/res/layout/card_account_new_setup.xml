@@ -54,7 +54,7 @@
       android:layout_marginTop="@dimen/marginVerticalHalf"
       android:layout_marginBottom="@dimen/marginVerticalHalf"
       android:gravity="center"
-      android:text="Your device is preparing your Pasbox account..."
+      android:text="@string/account_new_setup_in_progress"
       />
 
     <ProgressBar

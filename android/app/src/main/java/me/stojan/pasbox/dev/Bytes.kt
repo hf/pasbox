@@ -25,6 +25,11 @@
 
 package me.stojan.pasbox.dev
 
+import com.google.protobuf.ByteString
+import com.google.protobuf.asByteString
+import me.stojan.pasbox.BuildConfig
+import java.io.IOException
+import java.io.OutputStream
 import java.util.*
 
 inline fun Long.bigEndian(bytes: ByteArray, offset: Int = 0): Int {
@@ -79,6 +84,67 @@ object ByteArray16 {
   }
 
   inline fun <R> use(fn: (ByteArray) -> R): R = __get().use(fn)
+}
+
+class FixedSizeByteArrayOutputStream(size: Int) : OutputStream() {
+  private val buf = ByteArray(size)
+  private var pos = 0
+  private var closed = false
+
+  override fun write(b: Int) {
+    if (closed) {
+      throw IOException("Stream is closed")
+    }
+
+    if (pos + 1 > buf.size) {
+      throw IOException("Not enough space")
+    }
+
+    buf[pos] = b.toByte()
+    pos += 1
+  }
+
+  override fun write(b: ByteArray) {
+    this.write(b, 0, b.size)
+  }
+
+  override fun write(b: ByteArray, off: Int, len: Int) {
+    if (closed) {
+      throw IOException("Stream is closed")
+    }
+
+    if (pos + len > buf.size) {
+      throw IOException("Not enough space")
+    }
+
+    System.arraycopy(b, off, buf, pos, len)
+    pos += len
+  }
+
+  override fun close() {
+    super.close()
+
+    if (!closed) {
+      closed = true
+
+      if (BuildConfig.DEBUG) {
+        if (pos != buf.size) {
+          Log.w(this) {
+            text("Closing position not equal to buffer size")
+            param("pos", pos)
+            param("size", buf.size)
+          }
+        }
+      }
+    }
+  }
+
+  fun toByteString(): ByteString =
+    if (pos == buf.size) {
+      buf.asByteString()
+    } else {
+      buf.asByteString(0, pos)
+    }
 }
 
 

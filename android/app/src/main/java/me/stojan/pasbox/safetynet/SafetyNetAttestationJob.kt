@@ -82,7 +82,7 @@ abstract class SafetyNetAttestationJob : Job {
 
       SafetyNetAttestation.newBuilder()
         .setNonce(attestation.nonce)
-        .setApkDigestSha256(Base64.decode(attestation.apkDigestSha256, Base64.DEFAULT).asByteString())
+        .setApkDigestSha256(Base64.decode(attestation.apkDigestSha256, Base64.URL_SAFE).asByteString())
         .setApkPackageName(attestation.apkPackageName)
         .setApkCertificateDigestSha256(attestation.apkCertificateDigestSha256?.let { it[0]?.asByteString() })
         .setCtsProfileMatch(attestation.ctsProfileMatch)

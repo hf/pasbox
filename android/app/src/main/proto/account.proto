@@ -34,7 +34,7 @@ message KDFArgon2 {
 }
 
 message MasterKeys {
-  bytes hkdf1024 = 1;
+  bytes hkdf2048 = 1;
 
   bytes secp256r1_ecdh = 16;
   bytes secp256r1_ecdsa = 17;

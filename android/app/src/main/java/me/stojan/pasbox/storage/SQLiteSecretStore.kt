@@ -134,7 +134,6 @@ class SQLiteSecretStore(db: Single<SQLiteDatabase>) : SecretStore {
                     generateKey()
                   }
               }.let { key ->
-                val privateBS = private.toByteString()
                 val publicBS = public.toByteString()
 
                 Cipher.getInstance("AES/GCM/NoPadding").run {
@@ -147,7 +146,7 @@ class SQLiteSecretStore(db: Single<SQLiteDatabase>) : SecretStore {
                     .setAesGcmNopad96(iv.asByteString())
                     .setId(public.id)
                     .setPublic(publicBS)
-                    .setPrivate(doFinalBS(privateBS))
+                    .setPrivate(private.encipher(this))
                     .build()
                 }
               }.let { secret ->

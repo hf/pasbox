@@ -40,7 +40,8 @@ val BoundedByteStringLength = BoundedByteStringClass.getDeclaredField("bytesLeng
     isAccessible = true
   }
 
-fun ByteArray.asByteString() = ByteString.wrap(this)
+fun ByteArray.asByteString(): ByteString = ByteString.wrap(this)
+fun ByteArray.asByteString(offset: Int, length: Int): ByteString = ByteString.wrap(this, offset, length)
 
 fun ByteString.asByteArray(): ByteArray = peek { bytes, _, _ -> bytes }
 
