@@ -26,6 +26,7 @@
 package me.stojan.pasbox
 
 import android.content.Intent
+import android.content.ServiceConnection
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.widget.NestedScrollView
@@ -40,9 +41,13 @@ import me.stojan.pasbox.dev.Log
 
 abstract class AppActivity : AppCompatActivity() {
 
+  private val pendingResults = ArrayList<Triple<Int, Int, Intent?>>(2)
+
   private val pauseDisposables = CompositeDisposable()
   private val stopDisposables = CompositeDisposable()
   private val destroyDisposables = CompositeDisposable()
+
+  private val pauseUnbind = ArrayList<ServiceConnection>(3)
 
   private var started = false
   private var resumed = false
@@ -72,6 +77,16 @@ abstract class AppActivity : AppCompatActivity() {
     _floatingAction = findViewById(R.id.floating_action)
     _content = findViewById(R.id.content)
     _recycler = findViewById(R.id.recycler)
+  }
+
+  override fun unbindService(conn: ServiceConnection) {
+    pauseUnbind.remove(conn)
+    super.unbindService(conn)
+  }
+
+  fun unbindOnPause(intent: Intent, flags: Int, serviceConnection: ServiceConnection) {
+    bindService(intent, serviceConnection, flags)
+    pauseUnbind.add(serviceConnection)
   }
 
   fun disposeOnPause(vararg disposables: Disposable) {
@@ -114,10 +129,24 @@ abstract class AppActivity : AppCompatActivity() {
     Log.v(this) { text("onResume") }
   }
 
+  override fun onPostResume() {
+    super.onPostResume()
+
+    if (pendingResults.isNotEmpty()) {
+      pendingResults.forEach { result -> activityResults.onNext(result) }
+      pendingResults.clear()
+    }
+  }
+
   override fun onPause() {
     super.onPause()
     resumed = false
     pauseDisposables.clear()
+
+    pauseUnbind.forEach {
+      super.unbindService(it)
+    }
+    pauseUnbind.clear()
 
     Log.v(this) { text("onPause") }
   }
@@ -145,7 +174,11 @@ abstract class AppActivity : AppCompatActivity() {
       param("data", data)
     }
 
-    activityResults.onNext(Triple(requestCode, resultCode, data))
+    if (resumed) {
+      activityResults.onNext(Triple(requestCode, resultCode, data))
+    } else {
+      pendingResults.add(Triple(requestCode, resultCode, data))
+    }
   }
 
 }

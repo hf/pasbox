@@ -208,6 +208,9 @@ class UIRecyclerAdapter(val activity: UIActivity) : RecyclerView.Adapter<UIRecyc
             topviews.size - 1
           } else {
             topviews.removeAt(index)
+            if (index < important) {
+              important -= 1
+            }
             topviews.add(important, top)
             notifyItemMoved(index, important)
             index

@@ -82,6 +82,14 @@
   <string name="password_opening">Opening…</string>
   <string name="password_opening_failed_keyguard">Uh-oh. Touch to try again</string>
   <string name="password_will_close">Password will close in %d seconds…</string>
-  <string name="account_new_setup_in_progress">Your device is preparing your Pasbox account...</string>
+  <string name="account_new_setup_in_progress">Your device is preparing your Pasbox account…</string>
+  <string name="setup_master_password_explanation">You\'ll need to wait about %s minutes every time you use your master password, and on devices with %.1f%s of memory or more. Your device may slow down and get hot temporarily.</string>
+  <string name="setup_master_password_touch_to_begin">Touch to begin, swipe to cancel</string>
+  <string name="security">Security</string>
+  <string name="password_size_custom">Custom</string>
+  <string name="setup_master_password_advice">We advise you to setup a master password in order to enable backups and the online Pasbox service.</string>
+  <string name="setup_master_password">Setup master password</string>
+  <string name="master_password">Master password</string>
+  <string name="length">Length</string>
 
 </resources>

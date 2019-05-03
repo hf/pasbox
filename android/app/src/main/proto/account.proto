@@ -78,6 +78,10 @@ message AccountRecovery {
     KDFArgon2 kdf_argon2 = 32;
   }
 
+  oneof hash {
+    bytes hash_argon2 = 48;
+  }
+
   MasterKeys keys = 64;
 }
 

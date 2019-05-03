@@ -46,19 +46,14 @@ import me.stojan.pasbox.R
 import me.stojan.pasbox.dev.Log
 import me.stojan.pasbox.dev.mainThreadOnly
 import me.stojan.pasbox.jobs.Jobs
-import me.stojan.pasbox.storage.secrets.Password
-import java.security.SecureRandom
+import me.stojan.pasbox.password.ASCIIPasswordGeneratorParams
+import me.stojan.pasbox.password.Password
+import me.stojan.pasbox.password.PasswordGenerator
+import me.stojan.pasbox.storage.secrets.PasswordSecret
 
 class UICreatePassword @JvmOverloads constructor(
   context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0
 ) : LinearLayout(context, attrs, defStyleAttr) {
-
-  companion object {
-    const val UPCASE = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-    const val LOCASE = "abcdefghijklmnopqrstuvwxyz"
-    const val DIGITS = "0123456789"
-    const val SPECIALS = "!@#$%^&*()-_=+[]{}:?<>~"
-  }
 
   private val activity: UIActivity get() = context as UIActivity
 
@@ -216,7 +211,7 @@ class UICreatePassword @JvmOverloads constructor(
     val length = when (size.checkedChipId) {
       R.id.size_short -> 8
       -1, R.id.size_normal -> 16
-      R.id.size_huge -> 32
+      R.id.size_huge -> 22
       else -> throw RuntimeException("Unknown checked id=${size.checkedChipId}")
     }
 
@@ -224,28 +219,11 @@ class UICreatePassword @JvmOverloads constructor(
       password.removeTextChangedListener(passwordTextWatcher)
     }
 
-    password.setText(String(StringBuilder(UPCASE.length + LOCASE.length + DIGITS.length + SPECIALS.length)
-      .apply {
-        append(LOCASE)
-
-        if (multicase) {
-          append(UPCASE)
-        }
-
-        if (digits) {
-          append(DIGITS)
-        }
-
-        if (specials) {
-          append(SPECIALS)
-        }
-      }
-      .let { chars ->
-        SecureRandom().run {
-          CharArray(length) { chars[nextInt(chars.length)] }
-        }
+    password.setText(
+      PasswordGenerator.getInstance()
+        .run {
+          generate(ASCIIPasswordGeneratorParams(length, multicase, digits, specials))
       })
-    )
 
     passwordTextWatcher = object : TextWatcher {
       override fun afterTextChanged(s: Editable) {
@@ -301,11 +279,11 @@ class UICreatePassword @JvmOverloads constructor(
                 save.setText(R.string.password_saving)
 
                 val passwordData =
-                  Password.create(
+                  PasswordSecret.create(
                     title.text.toString(),
                     website.text?.toString(),
                     username.text?.toString(),
-                    password.text.toString()
+                    Password(password.text!!)
                   )
 
                 activity.disposeOnDestroy(
@@ -322,13 +300,13 @@ class UICreatePassword @JvmOverloads constructor(
                   }.second.observeOn(AndroidSchedulers.mainThread())
                     .subscribe({
                       mainThreadOnly {
-                        Log.v(this@UICreatePassword) { text("Password saved") }
+                        Log.v(this@UICreatePassword) { text("PasswordSecret saved") }
                         save.setText(R.string.password_saved)
                         onDone?.invoke(this@UICreatePassword)
                       }
                     }, {
                       mainThreadOnly {
-                        Log.v(this@UICreatePassword) { text("Password failed to save"); error(it) }
+                        Log.v(this@UICreatePassword) { text("PasswordSecret failed to save"); error(it) }
                         save.isEnabled = true
                         title.isEnabled = true
                         password.isEnabled = true
@@ -353,7 +331,7 @@ class UICreatePassword @JvmOverloads constructor(
                       }
                     }, {
                       mainThreadOnly {
-                        Log.v(this@UICreatePassword) { text("Password backup failed"); error(it) }
+                        Log.v(this@UICreatePassword) { text("PasswordSecret backup failed"); error(it) }
                       }
                     })
                 )

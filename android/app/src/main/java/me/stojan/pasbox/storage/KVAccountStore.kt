@@ -2,10 +2,14 @@ package me.stojan.pasbox.storage
 
 import android.security.keystore.KeyProperties
 import android.security.keystore.KeyProtection
+import com.google.protobuf.ByteString
+import com.google.protobuf.asByteArray
 import com.google.protobuf.asByteString
 import io.reactivex.Completable
+import io.reactivex.Maybe
 import io.reactivex.Single
 import me.stojan.pasbox.dev.encipher
+import me.stojan.pasbox.dev.updateAAD
 import me.stojan.pasbox.dev.use
 import me.stojan.pasbox.dev.workerThreadOnly
 import me.stojan.pasbox.hkdf.HKDF
@@ -16,6 +20,7 @@ import java.security.interfaces.ECPrivateKey
 import java.security.spec.ECGenParameterSpec
 import javax.crypto.Cipher
 import javax.crypto.KeyGenerator
+import javax.crypto.spec.GCMParameterSpec
 import javax.crypto.spec.SecretKeySpec
 
 class KVAccountStore(private val kvstore: KVStore) : AccountStore {
@@ -51,8 +56,12 @@ class KVAccountStore(private val kvstore: KVStore) : AccountStore {
                               setEntry(
                                 "user-account-recovery-aes-gcm",
                                 KeyStore.SecretKeyEntry(recoveryKey),
-                                KeyProtection.Builder(KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT)
+                                KeyProtection.Builder(KeyProperties.PURPOSE_DECRYPT)
                                   .setUserAuthenticationRequired(true)
+                                  .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
+                                  .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
+                                  .setRandomizedEncryptionRequired(true)
+                                  .setUserAuthenticationValidityDurationSeconds(5)
                                   .build()
                               )
 
@@ -63,6 +72,7 @@ class KVAccountStore(private val kvstore: KVStore) : AccountStore {
                                 ),
                                 KeyProtection.Builder(KeyProperties.PURPOSE_SIGN or KeyProperties.PURPOSE_VERIFY)
                                   .setUserAuthenticationRequired(true)
+                                  .setUserAuthenticationValidityDurationSeconds(5)
                                   .build()
                               )
 
@@ -73,6 +83,7 @@ class KVAccountStore(private val kvstore: KVStore) : AccountStore {
                                 ),
                                 KeyProtection.Builder(KeyProperties.PURPOSE_SIGN or KeyProperties.PURPOSE_VERIFY)
                                   .setUserAuthenticationRequired(true)
+                                  .setUserAuthenticationValidityDurationSeconds(5)
                                   .build()
                               )
 
@@ -231,4 +242,117 @@ class KVAccountStore(private val kvstore: KVStore) : AccountStore {
         initialize(ECGenParameterSpec(curve), random)
         (generateKeyPair().private as ECPrivateKey).s.toByteArray()
       }
+
+  override fun accountRecovery(): Maybe<AccountRecovery> =
+    kvstore.get(KV.ACCOUNT_RECOVERY)
+      .map { bytes ->
+        workerThreadOnly {
+          AccountRecoveryContainer.parseFrom(bytes)
+            .let { container ->
+              KeyStore.getInstance("AndroidKeyStore")!!
+                .run {
+                  load(null)
+
+                  getKey("user-account-recovery-aes-gcm", null)!!.let { recoveryKey ->
+                    Cipher.getInstance("AES/GCM/NoPadding")
+                      .run {
+                        init(
+                          Cipher.DECRYPT_MODE,
+                          recoveryKey,
+                          GCMParameterSpec(128, container.aesGcmNopad96.asByteArray())
+                        )
+
+                        AccountRecovery.parseFrom(doFinal(container.content.asByteArray()))
+                      }
+                  }
+                }
+            }
+        }
+      }
+
+  override fun secure(
+    accountRecovery: AccountRecovery,
+    kdf: KDFArgon2,
+    hash: ByteArray,
+    password: ByteArray?
+  ): Completable =
+    kvstore.put(Single.fromCallable {
+      workerThreadOnly {
+        val accountRecoveryBS = accountRecovery.toByteString()
+        val kdfBS = kdf.toByteString()
+
+        ArrayList<Pair<Int, ByteArray>>(2)
+          .apply {
+            if (null != password) {
+              KeyGenerator.getInstance("AES")
+                .run {
+                  init(256)
+                  generateKey()
+                }.let { recoveryKey ->
+                  KeyStore.getInstance("AndroidKeyStore")!!.run {
+                    load(null)
+
+                    setEntry(
+                      "user-account-recovery-aes-gcm",
+                      KeyStore.SecretKeyEntry(recoveryKey),
+                      KeyProtection.Builder(KeyProperties.PURPOSE_DECRYPT)
+                        .setUserAuthenticationRequired(true)
+                        .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
+                        .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
+                        .setRandomizedEncryptionRequired(true)
+                        .setUserAuthenticationValidityDurationSeconds(5)
+                        .build()
+                    )
+                  }
+
+                  add(
+                    Pair(KV.ACCOUNT_RECOVERY, Cipher.getInstance("AES/GCM/NoPadding")
+                      .run {
+                        init(Cipher.ENCRYPT_MODE, recoveryKey)
+
+                        AccountRecoveryContainer.newBuilder()
+                          .setAesGcmNopad96(iv.asByteString())
+                          .setContent(
+                            AccountRecovery.newBuilder(AccountRecovery.parseFrom(accountRecoveryBS))
+                              .setHashArgon2(ByteString.copyFrom(hash))
+                              .setPasswordArgon2Bytes(ByteString.copyFrom(password))
+                              .setKdfArgon2(kdf)
+                              .build()
+                              .encipher(this)
+                          )
+                          .build()
+                          .toByteArray()
+                      })
+                  )
+                }
+            }
+
+            add(
+              Pair(KV.ACCOUNT, Cipher.getInstance("AES/GCM/NoPadding")
+                .run {
+                  init(
+                    Cipher.ENCRYPT_MODE, SecretKeySpec(
+                      HKDF.derive256(hash, HKDF.MASTER_KEY_AES256),
+                      "AES"
+                    )
+                  )
+
+                  updateAAD(kdfBS)
+
+                  Account.newBuilder()
+                    .setArgon2(kdf)
+                    .setKeys(
+                      MasterKeysContainer.newBuilder()
+                        .setAesGcmNopad96(iv.asByteString())
+                        .setContent(AccountRecovery.parseFrom(accountRecoveryBS).keys.encipher(this))
+                        .build()
+                        .toByteString()
+                    )
+                    .build()
+                    .toByteArray()
+                })
+            )
+          }
+      }
+    })
 }

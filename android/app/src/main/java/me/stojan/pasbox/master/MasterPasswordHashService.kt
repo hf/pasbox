@@ -3,18 +3,19 @@ package me.stojan.pasbox.master
 import android.app.Service
 import android.content.Intent
 import android.os.IBinder
+import android.os.PowerManager
 import me.stojan.pasbox.argon2.Argon2
 import me.stojan.pasbox.argon2.Argon2Exception
 import me.stojan.pasbox.dev.Log
 import me.stojan.pasbox.dev.duration
+import me.stojan.pasbox.dev.use
 import me.stojan.pasbox.dev.workerThreadOnly
 import java.util.*
 
 class MasterPasswordHashService : Service() {
 
   companion object {
-    const val MIN_COST = 45
-    const val MIN_RAM_KB = 64 * 1024
+    const val MIN_RAM_KB = 128 * 1024
     const val RAM_KB_STEP_DOWN = 8 * 1024
   }
 
@@ -22,63 +23,73 @@ class MasterPasswordHashService : Service() {
 
     override fun measure(duration: Int, hashSize: Int, salt: ByteArray, password: ByteArray, params: IntArray): Int =
       workerThreadOnly {
-        val hash = ByteArray(hashSize)
+        this@MasterPasswordHashService.getSystemService(PowerManager::class.java)
+          .newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "pasbox:hashing-measure")
+          .use {
+            val hash = ByteArray(hashSize)
 
-        try {
-          Log.v(this) {
-            text("IMasterPassswordHashService#measure()")
+            try {
+              Log.v(this) {
+                text("IMasterPassswordHashService#measure()")
+              }
+
+              this@MasterPasswordHashService.measure(duration, salt, password, hash, params)
+
+              IMasterPasswordHashService.OK
+            } catch (e: Argon2Exception) {
+              Log.e(this@MasterPasswordHashService) {
+                text("(retryable) Failure to measure hashing params")
+                error(e)
+              }
+
+              IMasterPasswordHashService.ERROR_RETRYABLE
+            } catch (e: Throwable) {
+              Log.e(this@MasterPasswordHashService) {
+                text("Failure to measure hashing params")
+                error(e)
+              }
+
+              IMasterPasswordHashService.ERROR_FAILURE
+            } finally {
+              Arrays.fill(hash, 0)
+            }
           }
-
-          this@MasterPasswordHashService.measure(duration, salt, password, hash, params)
-
-          IMasterPasswordHashService.OK
-        } catch (e: Argon2Exception) {
-          Log.e(this@MasterPasswordHashService) {
-            text("(retryable) Failure to measure hashing params")
-            error(e)
-          }
-
-          IMasterPasswordHashService.ERROR_RETRYABLE
-        } catch (e: Throwable) {
-          Log.e(this@MasterPasswordHashService) {
-            text("Failure to measure hashing params")
-            error(e)
-          }
-
-          IMasterPasswordHashService.ERROR_FAILURE
-        } finally {
-          Arrays.fill(hash, 0)
-        }
       }
 
     override fun hash(hash: ByteArray, salt: ByteArray, password: ByteArray, params: IntArray): Int =
-      try {
-        Log.v(this) {
-          text("IMasterPasswordHashService#hash()")
-        }
+      workerThreadOnly {
+        this@MasterPasswordHashService.getSystemService(PowerManager::class.java)
+          .newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "pasbox:hashing-hash")
+          .use {
+            try {
+              Log.v(this) {
+                text("IMasterPasswordHashService#hash()")
+              }
 
-        this@MasterPasswordHashService.hash(
-          salt,
-          password,
-          hash,
-          params
-        )
+              this@MasterPasswordHashService.hash(
+                salt,
+                password,
+                hash,
+                params
+              )
 
-        IMasterPasswordHashService.OK
-      } catch (e: Argon2Exception) {
-        Log.e(this@MasterPasswordHashService) {
-          text("(retryable) Failure to hash password")
-          error(e)
-        }
+              IMasterPasswordHashService.OK
+            } catch (e: Argon2Exception) {
+              Log.e(this@MasterPasswordHashService) {
+                text("(retryable) Failure to hash password")
+                error(e)
+              }
 
-        IMasterPasswordHashService.ERROR_RETRYABLE
-      } catch (e: Throwable) {
-        Log.e(this@MasterPasswordHashService) {
-          text("Failure to hash password")
-          error(e)
-        }
+              IMasterPasswordHashService.ERROR_RETRYABLE
+            } catch (e: Throwable) {
+              Log.e(this@MasterPasswordHashService) {
+                text("Failure to hash password")
+                error(e)
+              }
 
-        IMasterPasswordHashService.ERROR_FAILURE
+              IMasterPasswordHashService.ERROR_FAILURE
+            }
+          }
       }
   }
 
@@ -128,7 +139,11 @@ class MasterPasswordHashService : Service() {
           var negotiationPasses = 0
           while (true) {
             try {
-              hash(1, params[1], 1, password, salt, hash)
+              val timed = duration {
+                hash(1, params[1], 1, password, salt, hash)
+              }
+
+              params[0] = Math.ceil(((duration.toDouble() / timed.toDouble()) / 4.0)).toInt()
               break
             } catch (e: Argon2Exception) {
               if ((-15 == e.code() || -22 == e.code()) && params[1] >= MIN_RAM_KB + RAM_KB_STEP_DOWN) {
@@ -146,9 +161,7 @@ class MasterPasswordHashService : Service() {
             param("negotiationPasses", negotiationPasses)
           }
 
-          params[0] = 0
-
-          for (i in (2..6 step 2)) { // 2 4 6
+          for (i in (3..9 step 2)) { // 3 6 9
             val timed = duration {
               hash(i, params[1], params[2], password, salt, hash)
             }
@@ -157,10 +170,10 @@ class MasterPasswordHashService : Service() {
               params[0] = i
               break
             } else {
-              val durationPerUnit = timed / i
-              val durationUnits = duration / durationPerUnit
+              val durationPerUnit = timed.toDouble() / i.toDouble()
+              val durationUnits = duration.toDouble() / durationPerUnit
 
-              params[0] += (durationUnits / 3).toInt()
+              params[0] += Math.ceil((durationUnits / 4)).toInt()
             }
           }
 
@@ -174,8 +187,8 @@ class MasterPasswordHashService : Service() {
 
   private fun hash(salt: ByteArray, password: ByteArray, hash: ByteArray, params: IntArray) =
     workerThreadOnly {
-      params[0] = Math.max(params[0], MIN_COST)
       params[1] = Math.max(params[1], MIN_RAM_KB)
+      params[0] = Math.max(params[0], Math.round(Math.log(params[1].toDouble()) / Math.log(2.0)).toInt())
 
       Argon2.getInstance(Argon2.BEST)
         .run {

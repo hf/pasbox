@@ -81,13 +81,18 @@ abstract class SafetyNetAttestationJob : Job {
       Log.v(this@SafetyNetAttestationJob) { text("Attestation is parsed"); param("attestation", attestation) }
 
       SafetyNetAttestation.newBuilder()
-        .setNonce(attestation.nonce)
-        .setApkDigestSha256(Base64.decode(attestation.apkDigestSha256, Base64.URL_SAFE).asByteString())
-        .setApkPackageName(attestation.apkPackageName)
-        .setApkCertificateDigestSha256(attestation.apkCertificateDigestSha256?.let { it[0]?.asByteString() })
-        .setCtsProfileMatch(attestation.ctsProfileMatch)
-        .setBasicIntegrity(attestation.basicIntegrity)
-        .setAdvice(attestation.advice)
+        .apply {
+          nonce = attestation.nonce
+          apkDigestSha256 = Base64.decode(attestation.apkDigestSha256, Base64.URL_SAFE).asByteString()
+          apkPackageName = attestation.apkPackageName
+          apkCertificateDigestSha256 = attestation.apkCertificateDigestSha256?.let { it[0]?.asByteString() }
+          ctsProfileMatch = attestation.ctsProfileMatch
+          basicIntegrity = attestation.basicIntegrity
+
+          if (null != attestation.advice) {
+            advice = attestation.advice
+          }
+        }
         .build()
         .toByteArray()
     }

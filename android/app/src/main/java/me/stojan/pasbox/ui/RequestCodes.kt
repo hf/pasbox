@@ -28,4 +28,5 @@ package me.stojan.pasbox.ui
 object RequestCodes {
   const val UI_CREATE_PASSWORD_KEYGUARD = 1024
   const val UI_OPEN_PASSWORD_KEYGUARD = 1025
+  const val UI_SETUP_MASTER_PASSWORD_KEYGUARD = 1026
 }

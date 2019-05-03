@@ -150,7 +150,7 @@ class UIActivity(val app: App = App.Current) : AppActivity() {
       .subscribe { attestation ->
         mainThreadOnly {
           if (!attestation.ctsProfileMatch) {
-            adapter.presentTop(UIRecyclerAdapter.Top.simple(R.layout.card_insecure_device))
+            adapter.presentTopImportant(UIRecyclerAdapter.Top.simple(R.layout.card_insecure_device))
           } else {
             adapter.dismissTop(R.layout.card_insecure_device)
           }
@@ -312,6 +312,17 @@ class UIActivity(val app: App = App.Current) : AppActivity() {
             }
           } else {
             adapter.dismissTop(R.layout.card_account_new_setup)
+
+            disposeOnPause(App.Components.Storage.kvstore().watch(KV.ACCOUNT, nulls = true, get = true)
+              .observeOn(AndroidSchedulers.mainThread())
+              .subscribe { value ->
+                if (null == value.second) {
+                  adapter.presentTop(UIRecyclerAdapter.Top.simple(R.layout.card_account_recovery_setup))
+                } else {
+                  adapter.dismissTop(R.layout.card_account_recovery_setup)
+                }
+              }
+            )
           }
         }
     )
