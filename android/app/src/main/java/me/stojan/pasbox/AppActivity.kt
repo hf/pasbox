@@ -127,21 +127,19 @@ abstract class AppActivity : AppCompatActivity() {
     pauseDisposables.clear()
 
     Log.v(this) { text("onResume") }
-  }
-
-  override fun onPostResume() {
-    super.onPostResume()
 
     if (pendingResults.isNotEmpty()) {
       pendingResults.forEach { result -> activityResults.onNext(result) }
-      pendingResults.clear()
     }
+
+    pendingResults.clear()
   }
 
   override fun onPause() {
     super.onPause()
     resumed = false
     pauseDisposables.clear()
+    pendingResults.clear()
 
     pauseUnbind.forEach {
       super.unbindService(it)

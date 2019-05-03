@@ -19,6 +19,7 @@ import io.reactivex.android.schedulers.AndroidSchedulers
 import me.stojan.pasbox.App
 import me.stojan.pasbox.R
 import me.stojan.pasbox.dev.Log
+import me.stojan.pasbox.dev.mainThreadOnly
 import me.stojan.pasbox.jobs.Jobs
 import me.stojan.pasbox.master.MasterPasswordHashConnection
 import me.stojan.pasbox.master.MasterPasswordHashService
@@ -45,6 +46,16 @@ class UISetupMasterPassword @JvmOverloads constructor(
         disposeOnDisconnect(
           measure(securityDuration, memoryPercent)
             .observeOn(AndroidSchedulers.mainThread())
+            .doOnDispose {
+              mainThreadOnly {
+                progressBar.removeCallbacks(progressBarUpdate)
+
+                accountRecovery = null
+                adviseLayout.visibility = View.GONE
+                setupLayout.visibility = View.VISIBLE
+                progressLayout.visibility = View.GONE
+              }
+            }
             .subscribe({
               Log.v(this@HashingConnection) {
                 text("Measurement done and sucessful")
@@ -61,19 +72,6 @@ class UISetupMasterPassword @JvmOverloads constructor(
       )
     }
 
-    override fun onDead() {
-      super.onDead()
-
-      if (memoryPercent <= 50) {
-        // Impossible to do this job.
-      } else {
-        memoryPercent = Math.max(50, memoryPercent - 5)
-        retry()
-      }
-
-      progressText.text = "Measurement failed"
-    }
-
     private fun beginHashing() {
       progressBar.isIndeterminate = false
       progressBar.max = securityDuration
@@ -85,6 +83,14 @@ class UISetupMasterPassword @JvmOverloads constructor(
         disposeOnDisconnect(
           hash()
             .observeOn(AndroidSchedulers.mainThread())
+            .doOnDispose {
+              progressBar.removeCallbacks(progressBarUpdate)
+
+              accountRecovery = null
+              adviseLayout.visibility = View.GONE
+              setupLayout.visibility = View.VISIBLE
+              progressLayout.visibility = View.GONE
+            }
             .subscribe({
               Log.v(this@HashingConnection) {
                 text("Hashing completed successfully")
@@ -308,8 +314,8 @@ class UISetupMasterPassword @JvmOverloads constructor(
 
           activity.startActivityForResult(
             keyguardManager.createConfirmDeviceCredentialIntent(
-              "Master password",
-              "Enter your PIN / Password / Fingerprint to setup a Pasbox master password."
+              resources.getString(R.string.setup_master_password_keyguard_title),
+              resources.getString(R.string.setup_master_password_keyguard_description)
             ), RequestCodes.UI_SETUP_MASTER_PASSWORD_KEYGUARD
           )
 
@@ -325,6 +331,14 @@ class UISetupMasterPassword @JvmOverloads constructor(
 
               activity.disposeOnPause(App.Components.Storage.account().accountRecovery()
                 .observeOn(AndroidSchedulers.mainThread())
+                .doOnDispose {
+                  mainThreadOnly {
+                    accountRecovery = null
+
+                    setupLayout.visibility = View.VISIBLE
+                    progressLayout.visibility = View.GONE
+                  }
+                }
                 .subscribe {
                   accountRecovery = it
 

@@ -3,12 +3,9 @@ package me.stojan.pasbox.master
 import android.app.ActivityManager
 import android.content.ComponentName
 import android.content.ServiceConnection
-import android.os.Handler
 import android.os.IBinder
-import android.os.Looper
 import com.google.protobuf.asByteString
 import io.reactivex.Completable
-import io.reactivex.Single
 import io.reactivex.disposables.CompositeDisposable
 import io.reactivex.disposables.Disposable
 import io.reactivex.schedulers.Schedulers
@@ -34,24 +31,6 @@ open class MasterPasswordHashConnection(protected val password: ByteArray, hashS
   final override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
     mainThreadOnly {
       _service = IMasterPasswordHashService.Stub.asInterface(service)
-
-      service!!.linkToDeath({
-        Arrays.fill(password, 0xCC.toByte())
-
-        Log.v(this) {
-          text("Service died")
-        }
-
-        Handler(Looper.getMainLooper()).post {
-          mainThreadOnly {
-            _service = null
-            disposables.dispose()
-            disposables.clear()
-
-            onDead()
-          }
-        }
-      }, 0)
 
       Log.v(this) {
         text("Service connected")
@@ -79,15 +58,6 @@ open class MasterPasswordHashConnection(protected val password: ByteArray, hashS
       onDisconnected()
     }
   }
-
-  protected fun ping(): Single<Boolean> = Single.fromCallable {
-    workerThreadOnly {
-      service.asBinder().pingBinder()
-        .also {
-          if (!it) Arrays.fill(password, 0xCC.toByte())
-        }
-    }
-  }.subscribeOn(Schedulers.io())
 
   protected fun memory(memoryInfo: ActivityManager.MemoryInfo) {
     // this number will be negotiated down by the implementer as well, so this value is the absolute recommended maximum
@@ -166,10 +136,6 @@ open class MasterPasswordHashConnection(protected val password: ByteArray, hashS
   }
 
   open fun onDisconnected() {
-
-  }
-
-  open fun onDead() {
 
   }
 

@@ -91,5 +91,7 @@
   <string name="setup_master_password">Setup master password</string>
   <string name="master_password">Master password</string>
   <string name="length">Length</string>
+  <string name="setup_master_password_keyguard_title">Setup Pasbox Master Password</string>
+  <string name="setup_master_password_keyguard_description">Enter your device PIN / Pattern / Password / Fingerprint to setup your Pasbox master password.</string>
 
 </resources>
