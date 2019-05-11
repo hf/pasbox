@@ -1,0 +1,280 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  ~ Copyright (C) 2019
+  ~
+  ~ Permission is hereby granted, free of charge, to any person obtaining
+  ~ a copy of this software and associated documentation files (the
+  ~ "Software"), to deal in the Software without restriction, including
+  ~ without limitation the rights to use, copy, modify, merge, publish,
+  ~ distribute, sublicense, and/or sell copies of the Software, and to
+  ~ permit persons to whom the Software is furnished to do so, subject to
+  ~ the following conditions:
+  ~
+  ~ The above copyright notice and this permission notice shall be
+  ~ included in all copies or substantial portions of the Software.
+  ~
+  ~ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+  ~ EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+  ~ MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+  ~ NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+  ~ BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
+  ~ ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+  ~ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+  ~ SOFTWARE.
+  ~
+  -->
+
+<me.stojan.pasbox.ui.UISetupMasterPassword
+  xmlns:android="http://schemas.android.com/apk/res/android"
+  xmlns:app="http://schemas.android.com/apk/res-auto"
+  android:keepScreenOn="true"
+  android:layout_width="match_parent"
+  android:layout_height="wrap_content"
+  android:layout_marginTop="@dimen/marginVertical"
+  android:layout_marginBottom="@dimen/marginVertical"
+  android:layout_marginLeft="@dimen/marginHorizontal"
+  android:layout_marginRight="@dimen/marginHorizontal"
+  app:contentPaddingTop="@dimen/cardPaddingVertical"
+  app:contentPaddingBottom="@dimen/cardPaddingVertical"
+  app:contentPaddingLeft="@dimen/cardPaddingHorizontal"
+  app:contentPaddingRight="@dimen/cardPaddingHorizontal"
+  android:clipChildren="false"
+  app:cardElevation="@dimen/cardElevationNormal"
+  app:cardMaxElevation="@dimen/cardElevationModal"
+  >
+
+  <LinearLayout
+    android:id="@+id/advise_layout"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    >
+
+    <TextView
+      android:layout_width="match_parent"
+      android:layout_height="wrap_content"
+      android:text="@string/setup_master_password_advice"
+      />
+
+    <com.google.android.material.button.MaterialButton
+      android:id="@+id/setup"
+      android:layout_width="wrap_content"
+      android:layout_height="wrap_content"
+      android:layout_gravity="end"
+      android:layout_marginTop="@dimen/marginVertical"
+      android:text="@string/setup_master_password"
+      />
+  </LinearLayout>
+
+  <LinearLayout
+    android:id="@+id/setup_layout"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:visibility="gone"
+    >
+
+    <com.google.android.material.textfield.TextInputLayout
+      style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+      android:id="@+id/master_password_layout"
+      android:layout_width="match_parent"
+      android:layout_height="wrap_content"
+      app:helperText="Edit the suggested password, or enter your own..."
+      app:helperTextEnabled="true"
+      app:boxStrokeWidth="3dp"
+      >
+
+      <com.google.android.material.textfield.TextInputEditText
+        android:id="@+id/master_password"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="@string/master_password"
+        android:singleLine="true"
+        android:imeOptions="actionDone"
+        android:imeActionLabel="Save"
+        />
+
+    </com.google.android.material.textfield.TextInputLayout>
+
+    <LinearLayout
+      android:orientation="horizontal"
+      android:layout_width="match_parent"
+      android:layout_height="wrap_content"
+      android:layout_marginTop="@dimen/marginVertical"
+      >
+
+      <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="match_parent"
+        android:gravity="end|center_vertical"
+        android:layout_weight="0"
+        android:text="@string/length"
+        />
+
+      <View
+        android:layout_width="wrap_content"
+        android:layout_height="match_parent"
+        android:layout_weight="1"
+        />
+
+      <com.google.android.material.chip.ChipGroup
+        android:id="@+id/length"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_weight="0"
+        app:chipSpacingHorizontal="8dp"
+        app:singleSelection="true"
+        >
+
+        <com.google.android.material.chip.Chip
+          style="@style/Widget.MaterialComponents.Chip.Choice"
+          android:id="@+id/length_custom"
+          android:layout_width="wrap_content"
+          android:layout_height="wrap_content"
+          android:text="@string/password_size_custom"
+          app:chipStrokeWidth="3dp"
+          />
+
+        <com.google.android.material.chip.Chip
+          style="@style/Widget.MaterialComponents.Chip.Choice"
+          android:id="@+id/length_short"
+          android:layout_width="wrap_content"
+          android:layout_height="wrap_content"
+          android:text="@string/password_size_short"
+          app:chipStrokeWidth="3dp"
+          />
+
+        <com.google.android.material.chip.Chip
+          style="@style/Widget.MaterialComponents.Chip.Choice"
+          android:id="@+id/length_normal"
+          android:layout_width="wrap_content"
+          android:layout_height="wrap_content"
+          android:text="@string/password_size_normal"
+          app:chipStrokeWidth="3dp"
+          />
+
+        <com.google.android.material.chip.Chip
+          style="@style/Widget.MaterialComponents.Chip.Choice"
+          android:id="@+id/length_long"
+          android:layout_width="wrap_content"
+          android:layout_height="wrap_content"
+          android:text="@string/password_size_huge"
+          app:chipStrokeWidth="3dp"
+          />
+
+      </com.google.android.material.chip.ChipGroup>
+    </LinearLayout>
+
+    <LinearLayout
+      android:orientation="horizontal"
+      android:layout_width="match_parent"
+      android:layout_height="wrap_content"
+      android:layout_marginTop="@dimen/marginVertical"
+      >
+
+      <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="match_parent"
+        android:gravity="end|center_vertical"
+        android:layout_weight="0"
+        android:text="@string/security"
+        />
+
+      <View
+        android:layout_width="wrap_content"
+        android:layout_height="match_parent"
+        android:layout_weight="1"
+        />
+
+      <com.google.android.material.chip.ChipGroup
+        android:id="@+id/security"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_weight="0"
+        app:chipSpacingHorizontal="8dp"
+        app:singleSelection="true"
+        >
+
+        <com.google.android.material.chip.Chip
+          style="@style/Widget.MaterialComponents.Chip.Choice"
+          android:id="@+id/security_low"
+          android:layout_width="wrap_content"
+          android:layout_height="wrap_content"
+          app:chipStrokeWidth="3dp"
+          />
+
+        <com.google.android.material.chip.Chip
+          style="@style/Widget.MaterialComponents.Chip.Choice"
+          android:id="@+id/security_medium"
+          android:layout_width="wrap_content"
+          android:layout_height="wrap_content"
+          app:chipStrokeWidth="3dp"
+          />
+
+        <com.google.android.material.chip.Chip
+          style="@style/Widget.MaterialComponents.Chip.Choice"
+          android:id="@+id/security_high"
+          android:layout_width="wrap_content"
+          android:layout_height="wrap_content"
+          app:chipStrokeWidth="3dp"
+          />
+
+        <com.google.android.material.chip.Chip
+          style="@style/Widget.MaterialComponents.Chip.Choice"
+          android:id="@+id/security_extreme"
+          android:layout_width="wrap_content"
+          android:layout_height="wrap_content"
+          android:text="10:00"
+          app:chipStrokeWidth="3dp"
+          />
+
+      </com.google.android.material.chip.ChipGroup>
+    </LinearLayout>
+
+    <TextView
+      android:id="@+id/explanation"
+      android:layout_width="match_parent"
+      android:layout_height="wrap_content"
+      android:layout_marginTop="@dimen/marginVertical"
+      android:layout_marginBottom="@dimen/marginVertical"
+      android:text="@string/setup_master_password_explanation"
+      />
+
+    <TextView
+      android:id="@+id/start"
+      android:layout_width="match_parent"
+      android:layout_height="wrap_content"
+      android:layout_marginTop="@dimen/marginVertical"
+      android:layout_marginBottom="@dimen/marginVertical"
+      android:gravity="center"
+      android:text="@string/setup_master_password_touch_to_begin"
+      />
+
+  </LinearLayout>
+
+  <LinearLayout
+    android:id="@+id/progress_layout"
+    android:visibility="gone"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    >
+
+    <TextView
+      android:id="@+id/progress_text"
+      android:layout_width="match_parent"
+      android:layout_height="wrap_content"
+      />
+
+    <ProgressBar
+      style="?android:attr/progressBarStyleHorizontal"
+      android:id="@+id/progress"
+      android:layout_marginTop="@dimen/marginVerticalHalf"
+      android:layout_marginBottom="@dimen/marginVerticalHalf"
+      android:layout_width="match_parent"
+      android:layout_height="wrap_content"
+      />
+
+  </LinearLayout>
+
+</me.stojan.pasbox.ui.UISetupMasterPassword>
