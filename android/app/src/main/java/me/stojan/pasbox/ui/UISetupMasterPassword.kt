@@ -40,7 +40,7 @@ class UISetupMasterPassword @JvmOverloads constructor(
       context.getSystemService(ActivityManager::class.java).getMemoryInfo(memoryInfo)
       memory(memoryInfo)
 
-      progressText.text = "Measuring device performance, this may take up to a minute..."
+      progressText.state = 1
 
       activity.disposeOnPause(
         disposeOnDisconnect(
@@ -77,7 +77,7 @@ class UISetupMasterPassword @JvmOverloads constructor(
       progressBar.max = securityDuration
       progressBar.post(progressBarUpdate)
 
-      progressText.text = "Securing your master password... your device may get hot and other apps may run slow..."
+      progressText.state = 2
 
       activity.disposeOnPause(
         disposeOnDisconnect(
@@ -138,7 +138,7 @@ class UISetupMasterPassword @JvmOverloads constructor(
   lateinit var start: TextView
   lateinit var explanation: TextView
 
-  lateinit var progressText: TextView
+  lateinit var progressText: StateTextView
   lateinit var progressBar: ProgressBar
 
   private val activity: UIActivity get() = context as UIActivity
@@ -155,7 +155,7 @@ class UISetupMasterPassword @JvmOverloads constructor(
         progressBar.postDelayed(this, 250)
       } else {
         progressBar.progress = progressBar.max
-        progressText.text = "Finishing up..."
+        progressText.state = 4
         progressBar.isIndeterminate = true
       }
     }
@@ -201,6 +201,15 @@ class UISetupMasterPassword @JvmOverloads constructor(
     progressLayout = findViewById(R.id.progress_layout)
     progressBar = findViewById(R.id.progress)
     progressText = findViewById(R.id.progress_text)
+
+    progressText.states = intArrayOf(
+      /* 0: */ R.string.setup_master_password_measuring_performance_1, 3000, 1,
+      /* 1: */ R.string.setup_master_password_measuring_performance_2, 2000, 0,
+      /* 2: */ R.string.setup_master_password_securing_1, 3500, 3,
+      /* 3: */ R.string.setup_master_password_securing_2, 2500, 4,
+      /* 4: */ R.string.setup_master_password_securing_3, 2500, 2,
+      /* 5: */ R.string.setup_master_password_finishing_up, 0, -1
+    )
   }
 
   private fun onSetup() {

@@ -260,7 +260,7 @@
     android:orientation="vertical"
     >
 
-    <TextView
+    <me.stojan.pasbox.ui.StateTextView
       android:id="@+id/progress_text"
       android:layout_width="match_parent"
       android:layout_height="wrap_content"

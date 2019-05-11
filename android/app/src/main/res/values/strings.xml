@@ -94,4 +94,10 @@
   <string name="setup_master_password_keyguard_title">Setup Pasbox Master Password</string>
   <string name="setup_master_password_keyguard_description">Enter your device PIN / Pattern / Password / Fingerprint to setup your Pasbox master password.</string>
 
+  <string name="setup_master_password_measuring_performance_1">Measuring the device\'s performance…</string>
+  <string name="setup_master_password_measuring_performance_2">This may take up to a minute…</string>
+  <string name="setup_master_password_securing_1">Securing your password, this will take a while…</string>
+  <string name="setup_master_password_securing_2">Your device may become hot and other apps slow…</string>
+  <string name="setup_master_password_securing_3">If you leave the app this process will be cancelled…</string>
+  <string name="setup_master_password_finishing_up">Finishing up…</string>
 </resources>
