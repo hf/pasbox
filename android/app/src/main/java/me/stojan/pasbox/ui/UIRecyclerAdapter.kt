@@ -76,6 +76,10 @@ class UIRecyclerAdapter(val activity: UIActivity) : RecyclerView.Adapter<UIRecyc
   }
 
   class TopHolder(itemView: View) : UIViewHolder(itemView) {
+    init {
+      setIsRecyclable(false)
+    }
+
     var top: Top? = null
 
     override val swipeFlags: Int
@@ -90,6 +94,7 @@ class UIRecyclerAdapter(val activity: UIActivity) : RecyclerView.Adapter<UIRecyc
     fun bind(top: Top) {
       this.top = top
       this.top?.onBound(itemView)
+
     }
 
     override fun onSwiped(direction: Int) {

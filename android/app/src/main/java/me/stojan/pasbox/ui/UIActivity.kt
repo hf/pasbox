@@ -49,6 +49,7 @@ import me.stojan.pasbox.jobs.Jobs
 import me.stojan.pasbox.safetynet.SafetyNetAttestation
 import me.stojan.pasbox.storage.KV
 import me.stojan.pasbox.storage.SecretStore
+import java.lang.ref.WeakReference
 
 class UIActivity(val app: App = App.Current) : AppActivity() {
 
@@ -206,6 +207,7 @@ class UIActivity(val app: App = App.Current) : AppActivity() {
       return
     }
 
+    inAction = true
     floatingAction.show()
     floatingAction.setOnClickListener {
       floatingAction.hide()
@@ -317,7 +319,7 @@ class UIActivity(val app: App = App.Current) : AppActivity() {
               .observeOn(AndroidSchedulers.mainThread())
               .subscribe { value ->
                 if (null == value.second) {
-                  adapter.presentTop(UIRecyclerAdapter.Top.simple(R.layout.card_account_recovery_setup))
+                  adapter.presentTop(SetupMasterPasswordTop())
                 } else {
                   adapter.dismissTop(R.layout.card_account_recovery_setup)
                 }
@@ -326,5 +328,24 @@ class UIActivity(val app: App = App.Current) : AppActivity() {
           }
         }
     )
+  }
+
+  inner class SetupMasterPasswordTop : UIRecyclerAdapter.Top {
+    private lateinit var view: WeakReference<UISetupMasterPassword>
+
+    override val layout: Int = R.layout.card_account_recovery_setup
+    override val swipable: Boolean
+      get() = view.get()?.swipable ?: false
+
+    override fun onBound(view: View) {
+      this.view = WeakReference(view as UISetupMasterPassword)
+    }
+
+    override fun onSwiped(view: View, direction: Int) {
+      adapter.dismissTop(layout)
+      adapter.presentTop(SetupMasterPasswordTop())
+      this.view.clear()
+    }
+
   }
 }

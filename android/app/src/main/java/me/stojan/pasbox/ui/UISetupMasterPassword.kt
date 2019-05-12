@@ -31,7 +31,7 @@ class UISetupMasterPassword @JvmOverloads constructor(
   context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0
 ) : MaterialCardView(context, attrs, defStyleAttr) {
 
-  inner class HashingConnection(password: ByteArray) : MasterPasswordHashConnection(password, 512) {
+  private inner class HashingConnection(password: ByteArray) : MasterPasswordHashConnection(password, 512) {
     private var memoryInfo = ActivityManager.MemoryInfo()
 
     override fun onConnected() {
@@ -120,26 +120,28 @@ class UISetupMasterPassword @JvmOverloads constructor(
 
   }
 
-  lateinit var memoryInfo: ActivityManager.MemoryInfo
+  val swipable: Boolean get() = View.VISIBLE == setupLayout.visibility
 
-  lateinit var adviseLayout: View
-  lateinit var setupLayout: View
-  lateinit var progressLayout: View
+  private lateinit var memoryInfo: ActivityManager.MemoryInfo
 
-  lateinit var setup: MaterialButton
-  lateinit var password: TextInputEditText
-  lateinit var length: ChipGroup
-  lateinit var security: ChipGroup
-  lateinit var securityLow: Chip
-  lateinit var securityMedium: Chip
-  lateinit var securityHigh: Chip
-  lateinit var securityExtreme: Chip
+  private lateinit var adviseLayout: View
+  private lateinit var setupLayout: View
+  private lateinit var progressLayout: View
 
-  lateinit var start: TextView
-  lateinit var explanation: TextView
+  private lateinit var setup: MaterialButton
+  private lateinit var password: TextInputEditText
+  private lateinit var length: ChipGroup
+  private lateinit var security: ChipGroup
+  private lateinit var securityLow: Chip
+  private lateinit var securityMedium: Chip
+  private lateinit var securityHigh: Chip
+  private lateinit var securityExtreme: Chip
 
-  lateinit var progressText: StateTextView
-  lateinit var progressBar: ProgressBar
+  private lateinit var start: TextView
+  private lateinit var explanation: TextView
+
+  private lateinit var progressText: StateTextView
+  private lateinit var progressBar: ProgressBar
 
   private val activity: UIActivity get() = context as UIActivity
 
