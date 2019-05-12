@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+  xmlns:android="http://schemas.android.com/apk/res/android"
+  xmlns:tools="http://schemas.android.com/tools"
+  android:id="@+id/progress_layout"
+  android:layout_width="match_parent"
+  android:layout_height="wrap_content"
+  android:orientation="vertical"
+  tools:showIn="@layout/card_account_recovery_setup"
+  >
+
+  <me.stojan.pasbox.ui.StateTextView
+    android:id="@+id/progress_text"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    />
+
+  <ProgressBar
+    style="?android:attr/progressBarStyleHorizontal"
+    android:id="@+id/progress"
+    android:layout_marginTop="@dimen/marginVerticalHalf"
+    android:layout_marginBottom="@dimen/marginVerticalHalf"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    />
+
+</LinearLayout>

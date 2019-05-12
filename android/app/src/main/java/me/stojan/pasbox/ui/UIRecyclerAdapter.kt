@@ -76,10 +76,6 @@ class UIRecyclerAdapter(val activity: UIActivity) : RecyclerView.Adapter<UIRecyc
   }
 
   class TopHolder(itemView: View) : UIViewHolder(itemView) {
-    init {
-      setIsRecyclable(false)
-    }
-
     var top: Top? = null
 
     override val swipeFlags: Int
@@ -94,7 +90,6 @@ class UIRecyclerAdapter(val activity: UIActivity) : RecyclerView.Adapter<UIRecyc
     fun bind(top: Top) {
       this.top = top
       this.top?.onBound(itemView)
-
     }
 
     override fun onSwiped(direction: Int) {
@@ -146,10 +141,10 @@ class UIRecyclerAdapter(val activity: UIActivity) : RecyclerView.Adapter<UIRecyc
   }
 
   override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): UIViewHolder =
-    topviews.indexOfFirst { viewType == it.layout }
+    topviews.indexOfFirst { it.layout == viewType }
       .let { index ->
         if (index > -1) {
-          TopHolder(activity.layoutInflater.inflate(viewType, parent, false))
+          TopHolder(activity.layoutInflater.inflate(topviews[index].layout, parent, false))
         } else {
           PagedHolder(activity.layoutInflater.inflate(viewType, parent, false))
         }
@@ -203,14 +198,14 @@ class UIRecyclerAdapter(val activity: UIActivity) : RecyclerView.Adapter<UIRecyc
 
   override fun getItemCount(): Int = 0 + topviews.size + paged.size
 
-  fun presentTop(top: Top): Int =
+  fun presentTop(top: Top) =
     mainThreadOnly {
       topviews.indexOfFirst { top.layout == it.layout }
         .let { index ->
           if (index < 0) {
             topviews.add(important, top)
-            notifyItemInserted(topviews.size - 1)
-            topviews.size - 1
+            notifyItemInserted(important)
+            notifyItemChanged(important)
           } else {
             topviews.removeAt(index)
             if (index < important) {
@@ -218,27 +213,30 @@ class UIRecyclerAdapter(val activity: UIActivity) : RecyclerView.Adapter<UIRecyc
             }
             topviews.add(important, top)
             notifyItemMoved(index, important)
-            index
           }
         }
     }
 
-  fun presentTopImportant(top: Top): Int = mainThreadOnly {
-    topviews.indexOfFirst { top.layout == it.layout }
-      .let { index ->
-        if (index < 0) {
-          topviews.add(0, top)
-          notifyItemInserted(0)
-        } else {
-          topviews.removeAt(index)
-          topviews.add(0, top)
-          notifyItemMoved(index, 0)
-        }
+  fun presentTopImportant(top: Top) =
+    mainThreadOnly {
+      topviews.indexOfFirst { top.layout == it.layout }
+        .let { index ->
+          if (index < 0) {
+            topviews.add(0, top)
+            notifyItemInserted(0)
+            notifyItemChanged(0)
+            important += 1
+          } else {
+            topviews.removeAt(index)
+            topviews.add(0, top)
+            notifyItemMoved(index, 0)
 
-        important += 1
-      }
-    0
-  }
+            if (index >= important) {
+              important += 1
+            }
+          }
+        }
+    }
 
   fun dismissTop(layout: Int) {
     mainThreadOnly {

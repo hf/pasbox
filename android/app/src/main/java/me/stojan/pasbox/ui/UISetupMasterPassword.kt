@@ -115,6 +115,8 @@ class UISetupMasterPassword @JvmOverloads constructor(
 
               mainThreadOnly {
                 this@UISetupMasterPassword.keepScreenOn = false
+
+                onDone?.invoke(this@UISetupMasterPassword)
               }
             }, { error ->
               Log.e(this@HashingConnection) {
@@ -137,6 +139,8 @@ class UISetupMasterPassword @JvmOverloads constructor(
   }
 
   val swipable: Boolean get() = View.VISIBLE == setupLayout.visibility
+
+  var onDone: ((UISetupMasterPassword) -> Unit)? = null
 
   private lateinit var memoryInfo: ActivityManager.MemoryInfo
 
@@ -235,6 +239,7 @@ class UISetupMasterPassword @JvmOverloads constructor(
 
     adviseLayout.visibility = View.GONE
     setupLayout.visibility = View.VISIBLE
+    progressLayout.visibility = View.GONE
 
     memoryInfo = ActivityManager.MemoryInfo()
     context.getSystemService(ActivityManager::class.java)

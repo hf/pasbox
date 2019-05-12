@@ -49,7 +49,6 @@ import me.stojan.pasbox.jobs.Jobs
 import me.stojan.pasbox.safetynet.SafetyNetAttestation
 import me.stojan.pasbox.storage.KV
 import me.stojan.pasbox.storage.SecretStore
-import java.lang.ref.WeakReference
 
 class UIActivity(val app: App = App.Current) : AppActivity() {
 
@@ -64,6 +63,23 @@ class UIActivity(val app: App = App.Current) : AppActivity() {
 
     layoutManager = LinearLayoutManager(this)
     recycler.layoutManager = layoutManager
+
+    recycler.recycledViewPool.let {
+      it.setMaxRecycledViews(R.layout.card_account_new_setup, 0)
+      it.setMaxRecycledViews(R.layout.card_account_recovery_setup, 0)
+      it.setMaxRecycledViews(R.layout.card_account_recovery_setup_advise, 0)
+      it.setMaxRecycledViews(R.layout.card_account_recovery_setup_password, 0)
+      it.setMaxRecycledViews(R.layout.card_account_recovery_setup_progress, 0)
+      it.setMaxRecycledViews(R.layout.card_create_secret, 0)
+      it.setMaxRecycledViews(R.layout.card_create_secret_password, 0)
+      it.setMaxRecycledViews(R.layout.card_insecure_device, 0)
+      it.setMaxRecycledViews(R.layout.card_missing_google_play_services, 0)
+      it.setMaxRecycledViews(R.layout.card_old_google_play_services, 0)
+      it.setMaxRecycledViews(R.layout.card_secret_password, 0)
+      it.setMaxRecycledViews(R.layout.card_setup_fingerprint, 0)
+      it.setMaxRecycledViews(R.layout.card_setup_keyguard, 0)
+      it.setMaxRecycledViews(R.layout.card_updating_google_play_services, 0)
+    }
 
     adapter = UIRecyclerAdapter(this)
     adapter.mount(recycler)
@@ -268,82 +284,70 @@ class UIActivity(val app: App = App.Current) : AppActivity() {
 
   private fun observeAccountCreation() {
     disposeOnPause(
-      App.Components.Storage.kvstore().get(KV.ACCOUNT_RECOVERY)
-        .isEmpty
+      App.Components.Storage.kvstore().watch(
+        intArrayOf(KV.ACCOUNT_RECOVERY, KV.ACCOUNT), nulls = true, get = true
+      )
         .observeOn(AndroidSchedulers.mainThread())
-        .subscribe { noAccountRecovery ->
-          Log.v(this@UIActivity) {
-            text("Account recovery")
-            param("present", !noAccountRecovery)
-          }
+        .subscribe {
+          mainThreadOnly {
+            when (it.first) {
+              KV.ACCOUNT_RECOVERY -> {
+                val accountRecovery = null != it.second
 
-          if (noAccountRecovery) {
-            adapter.presentTopImportant(UIRecyclerAdapter.Top.simple(R.layout.card_account_new_setup))
-
-            Jobs.schedule(this@UIActivity, App.Components.Storage.account().new()) {
-              if (Build.VERSION.SDK_INT >= 28) {
-                setImportantWhileForeground(true)
-              } else {
-                setMinimumLatency(0)
-              }
-              setOverrideDeadline(0)
-            }.let {
-              disposeOnDestroy(
-                it.second
-                  .observeOn(AndroidSchedulers.mainThread())
-                  .subscribe({
-                    Log.v(this@UIActivity) {
-                      text("New account has been setup")
-                    }
-
-                    mainThreadOnly {
-                      adapter.dismissTop(R.layout.card_account_new_setup)
-                    }
-                  }, { error ->
-                    Log.e(this@UIActivity) {
-                      text("New account has not been setup")
-                      error(error)
-                    }
-
-                    mainThreadOnly {
-                      adapter.dismissTop(R.layout.card_account_new_setup)
-                    }
-                  })
-              )
-            }
-          } else {
-            adapter.dismissTop(R.layout.card_account_new_setup)
-
-            disposeOnPause(App.Components.Storage.kvstore().watch(KV.ACCOUNT, nulls = true, get = true)
-              .observeOn(AndroidSchedulers.mainThread())
-              .subscribe { value ->
-                if (null == value.second) {
-                  adapter.presentTop(SetupMasterPasswordTop())
+                if (accountRecovery) {
+                  adapter.dismissTop(R.layout.card_account_new_setup)
                 } else {
-                  adapter.dismissTop(R.layout.card_account_recovery_setup)
+                  adapter.presentTopImportant(UIRecyclerAdapter.Top.simple(R.layout.card_account_new_setup))
+
+                  Jobs.schedule(this@UIActivity, App.Components.Storage.account().new()) {
+                    if (Build.VERSION.SDK_INT >= 28) {
+                      setImportantWhileForeground(true)
+                    } else {
+                      setMinimumLatency(0)
+                    }
+                    setOverrideDeadline(0)
+                  }
                 }
               }
-            )
+
+              KV.ACCOUNT -> {
+                val account = null != it.second
+
+                if (account) {
+                  adapter.dismissTop(R.layout.card_account_new_setup)
+                  adapter.dismissTop(R.layout.card_account_recovery_setup)
+                } else {
+                  adapter.presentTop(SetupMasterPasswordTop())
+                }
+              }
+            }
+
+            null
           }
         }
     )
   }
 
   inner class SetupMasterPasswordTop : UIRecyclerAdapter.Top {
-    private lateinit var view: WeakReference<UISetupMasterPassword>
+    private lateinit var view: UISetupMasterPassword
 
     override val layout: Int = R.layout.card_account_recovery_setup
     override val swipable: Boolean
-      get() = view.get()?.swipable ?: false
+      get() = view.swipable
 
     override fun onBound(view: View) {
-      this.view = WeakReference(view as UISetupMasterPassword)
+      (view as UISetupMasterPassword).let {
+        this.view = it
+
+        it.onDone = {
+          adapter.dismissTop(layout)
+        }
+      }
     }
 
     override fun onSwiped(view: View, direction: Int) {
       adapter.dismissTop(layout)
       adapter.presentTop(SetupMasterPasswordTop())
-      this.view.clear()
     }
 
   }

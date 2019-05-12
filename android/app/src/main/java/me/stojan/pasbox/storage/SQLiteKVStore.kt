@@ -184,16 +184,23 @@ class SQLiteKVStore(db: Single<SQLiteDatabase>) : KVStore {
     }.subscribeOn(Schedulers.io())
 
   override fun watch(key: Int, nulls: Boolean, get: Boolean): Observable<Pair<Int, ByteArray?>> =
+    watch(intArrayOf(key), nulls, get)
+
+  override fun watch(keys: IntArray, nulls: Boolean, get: Boolean): Observable<Pair<Int, ByteArray?>> =
     if (get) {
-      this.get(key)
-        .map { Pair<Int, ByteArray?>(key, it) }
-        .switchIfEmpty(Maybe.just(Pair(key, null)))
-        .toObservable()
+      Observable.fromIterable(keys.map { key ->
+        get(key).map { Pair<Int, ByteArray?>(key, it) }.switchIfEmpty(Maybe.just(Pair<Int, ByteArray?>(key, null)))
+      })
+        .flatMapMaybe { it }
     } else {
       Observable.empty()
     }
       .mergeWith(modifications)
-      .filter { workerThreadOnly { key == it.first && (null != it.second || nulls) } }
+      .filter { pair ->
+        workerThreadOnly {
+          keys.contains(pair.first) && (null != pair.second || nulls)
+        }
+      }
 
   override fun del(key: Int): Completable =
     db.map { (db, _) ->

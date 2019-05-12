@@ -66,7 +66,7 @@ abstract class AppActivity : AppCompatActivity() {
   val recycler: RecyclerView get() = _recycler
 
   override fun onCreate(savedInstanceState: Bundle?) {
-    super.onCreate(savedInstanceState)
+    super.onCreate(null)
     destroyDisposables.clear()
 
     setContentView(R.layout.ui_main)
