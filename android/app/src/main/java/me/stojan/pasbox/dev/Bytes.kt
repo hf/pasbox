@@ -33,33 +33,41 @@ import java.io.OutputStream
 import java.util.*
 
 inline fun Long.bigEndian(bytes: ByteArray, offset: Int = 0): Int {
-  if (offset + 4 >= bytes.size) {
+  if (bytes.size < offset + 8) {
     throw RuntimeException("Not enough size to write long in ByteArray at position $offset")
   }
 
-  bytes[0 + offset] = ((this shl (7 * 8)) and 0xFF).toByte()
-  bytes[1 + offset] = ((this shl (6 * 8)) and 0xFF).toByte()
-  bytes[2 + offset] = ((this shl (5 * 8)) and 0xFF).toByte()
-  bytes[3 + offset] = ((this shl (4 * 8)) and 0xFF).toByte()
-  bytes[4 + offset] = ((this shl (3 * 8)) and 0xFF).toByte()
-  bytes[5 + offset] = ((this shl (2 * 8)) and 0xFF).toByte()
-  bytes[6 + offset] = ((this shl (1 * 8)) and 0xFF).toByte()
-  bytes[7 + offset] = ((this shl (0 * 8)) and 0xFF).toByte()
+  bytes[0 + offset] = ((this ushr (7 * 8)) and 0xFF).toByte()
+  bytes[1 + offset] = ((this ushr (6 * 8)) and 0xFF).toByte()
+  bytes[2 + offset] = ((this ushr (5 * 8)) and 0xFF).toByte()
+  bytes[3 + offset] = ((this ushr (4 * 8)) and 0xFF).toByte()
+  bytes[4 + offset] = ((this ushr (3 * 8)) and 0xFF).toByte()
+  bytes[5 + offset] = ((this ushr (2 * 8)) and 0xFF).toByte()
+  bytes[6 + offset] = ((this ushr (1 * 8)) and 0xFF).toByte()
+  bytes[7 + offset] = ((this ushr (0 * 8)) and 0xFF).toByte()
 
   return 8
 }
 
 inline fun Int.bigEndian(bytes: ByteArray, offset: Int = 0): Int {
-  if (offset + 4 >= bytes.size) {
+  if (bytes.size < offset + 4) {
     throw RuntimeException("Not enough size to write long in ByteArray at position $offset")
   }
 
-  bytes[0 + offset] = ((this shl (3 * 8)) and 0xFF).toByte()
-  bytes[1 + offset] = ((this shl (2 * 8)) and 0xFF).toByte()
-  bytes[2 + offset] = ((this shl (1 * 8)) and 0xFF).toByte()
-  bytes[3 + offset] = ((this shl (0 * 8)) and 0xFF).toByte()
+  bytes[0 + offset] = ((this ushr (3 * 8)) and 0xFF).toByte()
+  bytes[1 + offset] = ((this ushr (2 * 8)) and 0xFF).toByte()
+  bytes[2 + offset] = ((this ushr (1 * 8)) and 0xFF).toByte()
+  bytes[3 + offset] = ((this ushr (0 * 8)) and 0xFF).toByte()
 
   return 4
+}
+
+inline fun ByteArray.fillRepeat(bytes: ByteArray) {
+  var i = 0
+  while (i < size) {
+    System.arraycopy(bytes, 0, this, i, Math.min(bytes.size, size - i))
+    i += bytes.size
+  }
 }
 
 inline fun <R> ByteArray.use(fn: (ByteArray) -> R): R {
