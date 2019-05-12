@@ -218,8 +218,7 @@ class UIActivity(val app: App = App.Current) : AppActivity() {
         override val swipable: Boolean = true
 
         override fun onBound(view: View) {
-          (view as UICreateSecret).reset()
-          view.onDone = {
+          (view as UICreateSecret).onDone = {
             adapter.dismissTop(layout)
             floatingAction.show()
             inAction = false

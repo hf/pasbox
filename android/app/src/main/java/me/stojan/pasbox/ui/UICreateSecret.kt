@@ -51,9 +51,8 @@ class UICreateSecret @JvmOverloads constructor(
   lateinit var pickOTP: View
   lateinit var pickOther: View
 
-  fun reset() {
-    removeAllViews()
-    layoutInflater.inflate(R.layout.card_create_secret_pick, this, true)
+  override fun onFinishInflate() {
+    super.onFinishInflate()
 
     picker = findViewById(R.id.picker)
     pickPassword = picker.findViewById(R.id.password)

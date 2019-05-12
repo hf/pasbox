@@ -100,4 +100,7 @@
   <string name="setup_master_password_securing_2">Your device may become hot and other apps slow…</string>
   <string name="setup_master_password_securing_3">If you leave the app this process will be cancelled…</string>
   <string name="setup_master_password_finishing_up">Finishing up…</string>
+  <string name="create_secret_password">Password</string>
+  <string name="create_secret_otp">2FA (OTP)</string>
+  <string name="create_secret_other">Other</string>
 </resources>

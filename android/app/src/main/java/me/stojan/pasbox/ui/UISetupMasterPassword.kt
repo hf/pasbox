@@ -40,7 +40,9 @@ class UISetupMasterPassword @JvmOverloads constructor(
       context.getSystemService(ActivityManager::class.java).getMemoryInfo(memoryInfo)
       memory(memoryInfo)
 
-      progressText.state = 1
+      progressText.state = 0
+
+      this@UISetupMasterPassword.keepScreenOn = true
 
       activity.disposeOnPause(
         disposeOnDisconnect(
@@ -49,6 +51,8 @@ class UISetupMasterPassword @JvmOverloads constructor(
             .doOnDispose {
               mainThreadOnly {
                 progressBar.removeCallbacks(progressBarUpdate)
+
+                this@UISetupMasterPassword.keepScreenOn = false
 
                 accountRecovery = null
                 adviseLayout.visibility = View.GONE
@@ -66,6 +70,10 @@ class UISetupMasterPassword @JvmOverloads constructor(
               Log.e(this@HashingConnection) {
                 text("Measurement failed")
                 error(e)
+              }
+
+              mainThreadOnly {
+                this@UISetupMasterPassword.keepScreenOn = false
               }
             })
         )
@@ -104,10 +112,18 @@ class UISetupMasterPassword @JvmOverloads constructor(
               ) {
                 setMinimumLatency(0)
               }
+
+              mainThreadOnly {
+                this@UISetupMasterPassword.keepScreenOn = false
+              }
             }, { error ->
               Log.e(this@HashingConnection) {
                 text("Hashing failed")
                 error(error)
+              }
+
+              mainThreadOnly {
+                this@UISetupMasterPassword.keepScreenOn = false
               }
             })
         )
@@ -157,7 +173,7 @@ class UISetupMasterPassword @JvmOverloads constructor(
         progressBar.postDelayed(this, 250)
       } else {
         progressBar.progress = progressBar.max
-        progressText.state = 4
+        progressText.state = 5
         progressBar.isIndeterminate = true
       }
     }
