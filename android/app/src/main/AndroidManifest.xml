@@ -7,6 +7,7 @@
   <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
   <uses-permission android:name="android.permission.USE_FINGERPRINT"/>
   <uses-permission android:name="android.permission.WAKE_LOCK"/>
+  <uses-permission android:name="android.permission.CAMERA"/>
 
   <application
     android:name=".App"
@@ -17,6 +18,12 @@
     android:supportsRtl="true"
     android:theme="@style/AppTheme"
     >
+
+    <meta-data
+      android:name="com.google.firebase.ml.vision.DEPENDENCIES"
+      android:value="barcode"
+      />
+
     <service
       android:name=".jobs.JobService"
       android:permission="android.permission.BIND_JOB_SERVICE"

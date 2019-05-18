@@ -42,6 +42,7 @@ import me.stojan.pasbox.dev.Log
 abstract class AppActivity : AppCompatActivity() {
 
   private val pendingResults = ArrayList<Triple<Int, Int, Intent?>>(2)
+  private val pendingPermissionResults = ArrayList<Triple<Int, Array<out String>, IntArray>>(2)
 
   private val pauseDisposables = CompositeDisposable()
   private val stopDisposables = CompositeDisposable()
@@ -54,6 +55,9 @@ abstract class AppActivity : AppCompatActivity() {
 
   private var activityResults = PublishSubject.create<Triple<Int, Int, Intent?>>()
   val results: Observable<Triple<Int, Int, Intent?>> = activityResults
+
+  private var permissionResults = PublishSubject.create<Triple<Int, Array<out String>, IntArray>>()
+  val permissions: Observable<Triple<Int, Array<out String>, IntArray>> = permissionResults
 
   private lateinit var _navigationDrawer: DrawerLayout
   private lateinit var _floatingAction: FloatingActionButton
@@ -133,6 +137,12 @@ abstract class AppActivity : AppCompatActivity() {
     }
 
     pendingResults.clear()
+
+    if (pendingPermissionResults.isNotEmpty()) {
+      pendingPermissionResults.forEach { result -> permissionResults.onNext(result) }
+    }
+
+    pendingPermissionResults.clear()
   }
 
   override fun onPause() {
@@ -179,4 +189,13 @@ abstract class AppActivity : AppCompatActivity() {
     }
   }
 
+  override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+    super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+
+    if (resumed) {
+      permissionResults.onNext(Triple(requestCode, permissions, grantResults))
+    } else {
+      pendingPermissionResults.add(Triple(requestCode, permissions, grantResults))
+    }
+  }
 }
