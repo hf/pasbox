@@ -63,23 +63,7 @@ class UIActivity(val app: App = App.Current) : AppActivity() {
 
     layoutManager = LinearLayoutManager(this)
     recycler.layoutManager = layoutManager
-
-    recycler.recycledViewPool.let {
-      it.setMaxRecycledViews(R.layout.card_account_new_setup, 0)
-      it.setMaxRecycledViews(R.layout.card_account_recovery_setup, 0)
-      it.setMaxRecycledViews(R.layout.card_account_recovery_setup_advise, 0)
-      it.setMaxRecycledViews(R.layout.card_account_recovery_setup_password, 0)
-      it.setMaxRecycledViews(R.layout.card_account_recovery_setup_progress, 0)
-      it.setMaxRecycledViews(R.layout.card_create_secret, 0)
-      it.setMaxRecycledViews(R.layout.card_create_secret_password, 0)
-      it.setMaxRecycledViews(R.layout.card_insecure_device, 0)
-      it.setMaxRecycledViews(R.layout.card_missing_google_play_services, 0)
-      it.setMaxRecycledViews(R.layout.card_old_google_play_services, 0)
-      it.setMaxRecycledViews(R.layout.card_secret_password, 0)
-      it.setMaxRecycledViews(R.layout.card_setup_fingerprint, 0)
-      it.setMaxRecycledViews(R.layout.card_setup_keyguard, 0)
-      it.setMaxRecycledViews(R.layout.card_updating_google_play_services, 0)
-    }
+    recycler.setRecycledViewPool(SmartRecycledViewPool())
 
     adapter = UIRecyclerAdapter(this)
     adapter.mount(recycler)
