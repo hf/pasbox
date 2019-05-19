@@ -78,6 +78,14 @@ inline fun <R> ByteArray.use(fn: (ByteArray) -> R): R {
   }
 }
 
+inline fun <R> CharArray.use(fn: (CharArray) -> R): R {
+  try {
+    return fn(this)
+  } finally {
+    Arrays.fill(this, 'C')
+  }
+}
+
 object ByteArray16 {
   private val local = ThreadLocal<ByteArray>()
 

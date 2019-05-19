@@ -27,15 +27,12 @@ package me.stojan.pasbox.storage.secrets
 
 import com.google.protobuf.asByteString
 import io.reactivex.Single
-import me.stojan.pasbox.dev.use
 import me.stojan.pasbox.dev.workerThreadOnly
 import me.stojan.pasbox.password.Password
-import me.stojan.pasbox.signature.DeviceSignature
+import me.stojan.pasbox.random.RandomPadding
+import me.stojan.pasbox.random.UUID
 import me.stojan.pasbox.storage.SecretPrivate
 import me.stojan.pasbox.storage.SecretPublic
-import java.security.MessageDigest
-import java.security.SecureRandom
-import java.util.*
 
 object PasswordSecret {
   fun create(
@@ -47,20 +44,12 @@ object PasswordSecret {
     Single.fromCallable {
       workerThreadOnly {
         val now = System.currentTimeMillis()
-        val id = UUID.randomUUID().toString().toByteArray().asByteString()
+        val id = UUID.newBS()
 
         val private =
           password.use {
             SecretPrivate.newBuilder()
-              .setRandomPadding(
-                SecureRandom().run {
-                  ByteArray((512 + nextInt(512)) / 8)
-                    .also { padding ->
-                      nextInt() // skip the next int
-                      nextBytes(padding)
-                    }
-                }.asByteString()
-              )
+              .setRandomPadding(RandomPadding.newBS())
               .setId(id)
               .setCreatedAt(now)
               .setPassword(
@@ -71,36 +60,21 @@ object PasswordSecret {
               .build()
           }
 
-        private.toByteArray().use { privateBytes ->
-          val public = SecretPublic.newBuilder()
-            .setId(id)
-            .setCreatedAt(now)
-            .setModifiedAt(now)
-            .setHidden(false)
-            .setSha256(
-              MessageDigest.getInstance("SHA-256")
-                .run {
-                  update(privateBytes)
-                  digest()
-                }.asByteString()
-            )
-            .setSecp256R1Sha256(
-              DeviceSignature.createBlocking()
-                .apply {
-                  sign(privateBytes)
-                }.signature().asByteString()
-            )
-            .setPassword(
-              SecretPublic.Password.newBuilder()
-                .setTitle(title)
-                .setWebsite(website)
-                .setUser(user)
-                .build()
-            )
-            .build()
+        val public = SecretPublic.newBuilder()
+          .setId(id)
+          .setCreatedAt(now)
+          .setModifiedAt(now)
+          .setHidden(false)
+          .setPassword(
+            SecretPublic.Password.newBuilder()
+              .setTitle(title)
+              .setWebsite(website)
+              .setUser(user)
+              .build()
+          )
+          .build()
 
-          Pair(public, private)
-        }
+        Pair(public, private)
       }
     }.cache()
 

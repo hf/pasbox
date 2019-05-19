@@ -122,6 +122,13 @@ class BarcodeScanner(val cameraId: String, val textureView: TextureView) :
       )
         .addOnSuccessListener {
           it.forEach {
+            Log.v(this@BarcodeScanner) {
+              text("Detected barcode")
+              param("barcode.rawValue", it.rawValue)
+            }
+          }
+
+          it.forEach {
             resultsSubject.onNext(it)
           }
 
@@ -173,7 +180,8 @@ class BarcodeScanner(val cameraId: String, val textureView: TextureView) :
             .let { minSize ->
               surfaceTexture.setDefaultBufferSize(minSize!!.width, minSize.height)
               textureView.setTransform(Matrix().apply {
-                postScale(1f, minSize.width.toFloat() / minSize.height.toFloat())
+                textureView.getTransform(this)
+                setScale(1f, minSize.width.toFloat() / minSize.height.toFloat())
               })
 
               imageReader?.apply { close() }
