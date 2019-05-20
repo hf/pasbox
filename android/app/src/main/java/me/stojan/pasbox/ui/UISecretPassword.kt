@@ -40,6 +40,8 @@ import io.reactivex.android.schedulers.AndroidSchedulers
 import me.stojan.pasbox.App
 import me.stojan.pasbox.R
 import me.stojan.pasbox.dev.mainThreadOnly
+import me.stojan.pasbox.storage.Secret
+import me.stojan.pasbox.storage.SecretPublic
 
 class UISecretPassword @JvmOverloads constructor(
   context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0
@@ -80,18 +82,18 @@ class UISecretPassword @JvmOverloads constructor(
     password = opened.findViewById(R.id.password)
   }
 
-  override fun onBind() {
-    super.onBind()
+  override fun onBind(value: Pair<SecretPublic, Secret>) {
+    super.onBind(value)
 
-    title.text = public.password.title
+    title.text = value.first.password.title
     open.setText(R.string.password_touch_to_open)
     open.setOnClickListener { onOpen() }
 
     setOnClickListener { onClick() }
   }
 
-  override fun onRecycled() {
-    super.onRecycled()
+  override fun onRecycle() {
+    super.onRecycle()
 
     removeCallbacks(_countdown)
   }
@@ -124,14 +126,15 @@ class UISecretPassword @JvmOverloads constructor(
         ), RequestCodes.UI_OPEN_PASSWORD_KEYGUARD
       )
 
-      disposeOnRecycle(activity.results.filter { RequestCodes.UI_OPEN_PASSWORD_KEYGUARD == it.first }
+      disposeOnDetach(activity.results.filter { RequestCodes.UI_OPEN_PASSWORD_KEYGUARD == it.first }
         .take(1)
         .observeOn(AndroidSchedulers.mainThread())
         .subscribe { (_, resultCode, _) ->
           if (Activity.RESULT_OK == resultCode) {
             open.setText(R.string.password_opening)
 
-            disposeOnRecycle(App.Components.Storage.secrets()
+            disposeOnDetach(
+              App.Components.Storage.secrets()
               .open(Single.just(Pair(public, secret)))
               .observeOn(AndroidSchedulers.mainThread())
               .subscribe { (public, private) ->

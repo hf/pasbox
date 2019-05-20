@@ -34,18 +34,16 @@ import android.util.AttributeSet
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import com.google.android.material.card.MaterialCardView
 import me.stojan.pasbox.R
 
 class UICreateSecret @JvmOverloads constructor(
   context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0
-) : MaterialCardView(context, attrs, defStyleAttr) {
+) : UITop(context, attrs, defStyleAttr) {
 
   private val activity: UIActivity get() = context as UIActivity
   private val layoutInflater: LayoutInflater get() = activity.layoutInflater
 
-  var onDone: ((UICreateSecret) -> Unit)? = null
-
+  lateinit var content: ViewGroup
   lateinit var picker: ViewGroup
   lateinit var pickPassword: View
   lateinit var pickOTP: View
@@ -54,6 +52,7 @@ class UICreateSecret @JvmOverloads constructor(
   override fun onFinishInflate() {
     super.onFinishInflate()
 
+    content = findViewById(R.id.content)
     picker = findViewById(R.id.picker)
     pickPassword = picker.findViewById(R.id.password)
     pickPassword.setOnClickListener(pick(R.layout.card_create_secret_password))
@@ -72,12 +71,12 @@ class UICreateSecret @JvmOverloads constructor(
     )
 
     picker.visibility = View.GONE
-    layoutInflater.inflate(layout, this, true)
+    layoutInflater.inflate(layout, content, true)
       .also {
         it.findViewById<UICreatePassword?>(R.id.card_create_secret_password)
           ?.let {
             it.onDone = {
-              this@UICreateSecret.onDone?.invoke(this@UICreateSecret)
+              this@UICreateSecret.onDone?.invoke()
             }
           }
       }

@@ -11,7 +11,6 @@ import android.view.ViewGroup
 import android.widget.ProgressBar
 import android.widget.TextView
 import com.google.android.material.button.MaterialButton
-import com.google.android.material.card.MaterialCardView
 import com.google.android.material.chip.Chip
 import com.google.android.material.chip.ChipGroup
 import com.google.android.material.textfield.TextInputEditText
@@ -29,7 +28,7 @@ import me.stojan.pasbox.storage.AccountRecovery
 
 class UISetupMasterPassword @JvmOverloads constructor(
   context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0
-) : MaterialCardView(context, attrs, defStyleAttr) {
+) : UITop(context, attrs, defStyleAttr) {
 
   private inner class HashingConnection(password: ByteArray) : MasterPasswordHashConnection(password, 512) {
     private var memoryInfo = ActivityManager.MemoryInfo()
@@ -116,7 +115,7 @@ class UISetupMasterPassword @JvmOverloads constructor(
               mainThreadOnly {
                 this@UISetupMasterPassword.keepScreenOn = false
 
-                onDone?.invoke(this@UISetupMasterPassword)
+                onDone?.invoke()
               }
             }, { error ->
               Log.e(this@HashingConnection) {
@@ -139,8 +138,6 @@ class UISetupMasterPassword @JvmOverloads constructor(
   }
 
   val swipable: Boolean get() = View.VISIBLE == setupLayout.visibility
-
-  var onDone: ((UISetupMasterPassword) -> Unit)? = null
 
   private lateinit var memoryInfo: ActivityManager.MemoryInfo
 

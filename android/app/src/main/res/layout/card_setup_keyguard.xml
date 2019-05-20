@@ -24,43 +24,50 @@
   ~
   -->
 
-<com.google.android.material.card.MaterialCardView
+<me.stojan.pasbox.ui.UITop
   xmlns:android="http://schemas.android.com/apk/res/android"
   xmlns:app="http://schemas.android.com/apk/res-auto"
   android:layout_width="match_parent"
   android:layout_height="wrap_content"
-  android:layout_marginTop="@dimen/marginVertical"
-  android:layout_marginBottom="@dimen/marginVertical"
-  android:layout_marginLeft="@dimen/marginHorizontal"
-  android:layout_marginRight="@dimen/marginHorizontal"
-  app:contentPaddingTop="@dimen/cardPaddingVertical"
-  app:contentPaddingBottom="@dimen/cardPaddingVertical"
-  app:contentPaddingLeft="@dimen/cardPaddingHorizontal"
-  app:contentPaddingRight="@dimen/cardPaddingHorizontal"
-  app:cardElevation="@dimen/cardElevationNormal"
-  app:cardMaxElevation="@dimen/cardElevationModal"
   >
 
-  <LinearLayout
+  <com.google.android.material.card.MaterialCardView
     android:layout_width="match_parent"
-    android:layout_height="wrap_content"
-    android:orientation="vertical"
+    android:layout_height="match_parent"
+    android:layout_marginTop="@dimen/marginVertical"
+    android:layout_marginBottom="@dimen/marginVertical"
+    android:layout_marginLeft="@dimen/marginHorizontal"
+    android:layout_marginRight="@dimen/marginHorizontal"
+    app:contentPaddingTop="@dimen/cardPaddingVertical"
+    app:contentPaddingBottom="@dimen/cardPaddingVertical"
+    app:contentPaddingLeft="@dimen/cardPaddingHorizontal"
+    app:contentPaddingRight="@dimen/cardPaddingHorizontal"
+    app:cardElevation="@dimen/cardElevationNormal"
+    app:cardMaxElevation="@dimen/cardElevationModal"
     >
 
-    <TextView
+    <LinearLayout
       android:layout_width="match_parent"
       android:layout_height="wrap_content"
-      android:text="@string/keyguard_not_setup"
-      />
+      android:orientation="vertical"
+      >
 
-    <com.google.android.material.button.MaterialButton
-      android:id="@+id/resolve_error"
-      android:layout_width="wrap_content"
-      android:layout_height="wrap_content"
-      android:layout_gravity="end"
-      android:layout_marginTop="@dimen/marginVertical"
-      android:text="@string/setup_keyguard"
-      />
-  </LinearLayout>
+      <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/keyguard_not_setup"
+        />
 
-</com.google.android.material.card.MaterialCardView>
+      <com.google.android.material.button.MaterialButton
+        android:id="@+id/resolve_error"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="end"
+        android:layout_marginTop="@dimen/marginVertical"
+        android:text="@string/setup_keyguard"
+        />
+    </LinearLayout>
+
+
+  </com.google.android.material.card.MaterialCardView>
+</me.stojan.pasbox.ui.UITop>
