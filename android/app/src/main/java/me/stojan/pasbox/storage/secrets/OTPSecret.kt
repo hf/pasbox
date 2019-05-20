@@ -23,7 +23,10 @@ object OTPSecret {
             val isValid = "otpauth" == parsed.scheme &&
               "totp" == parsed.authority &&
               (parsed.lastPathSegment ?: "").isNotEmpty() &&
-              (parsed.getQueryParameter("secret") ?: "").length >= 20
+              (parsed.getQueryParameter("secret") ?: "").matches(Regex("^[a-zA-Z2-9]{20,}=*$")) &&
+              (parsed.getQueryParameter("digits") ?: "6").matches(Regex("^[68]$")) &&
+              (parsed.getQueryParameter("period") ?: "30").matches(Regex("^[1-9][0-9]*$")) &&
+              (parsed.getQueryParameter("algorithm") ?: "SHA1").matches(Regex("^(SHA1|SHA256|SHA512)$"))
 
             if (isValid) {
               parsed
@@ -37,11 +40,11 @@ object OTPSecret {
     }
   }
 
-  fun create(parsed: Uri) = Single.fromCallable {
+  fun create(parsed: Uri, title: String? = null) = Single.fromCallable {
     workerThreadOnly {
       val type = parsed.authority
       val label = (parsed.lastPathSegment ?: "").split(":")
-      val issuer = parsed.getQueryParameter("issuer") ?: label[0]
+      val issuer = parsed.getQueryParameter("issuer") ?: ""
       val secret = parsed.getQueryParameter("secret")!!
       val digits = parsed.getQueryParameter("digits") ?: "6"
       val algorithm = parsed.getQueryParameter("algorithm")?.toUpperCase() ?: "SHA1"
@@ -86,6 +89,7 @@ object OTPSecret {
         .setModifiedAt(now)
         .setOtp(
           SecretPublic.OTP.newBuilder()
+            .setTitle(title ?: label.joinToString(" "))
             .setIssuer(issuer)
             .setAccount(
               if (label.size > 1) {

@@ -192,6 +192,7 @@ class UIRecyclerAdapter(val activity: UIActivity) : RecyclerView.Adapter<UIRecyc
     } else {
       when (paged[position - topviews.size].first.infoCase) {
         SecretPublic.InfoCase.PASSWORD -> R.layout.card_secret_password
+        SecretPublic.InfoCase.OTP -> R.layout.card_secret_otp
         else -> throw RuntimeException("Unknown info at position=$position")
       }
     }

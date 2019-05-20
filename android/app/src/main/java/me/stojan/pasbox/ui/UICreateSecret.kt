@@ -59,7 +59,7 @@ class UICreateSecret @JvmOverloads constructor(
     pickPassword.setOnClickListener(pick(R.layout.card_create_secret_password))
 
     pickOTP = picker.findViewById(R.id.otp)
-    pickOTP.setOnClickListener(pick(R.layout.card_create_secret_2fa))
+    pickOTP.setOnClickListener(pick(R.layout.card_create_secret_otp))
 
     pickOther = picker.findViewById(R.id.other)
   }

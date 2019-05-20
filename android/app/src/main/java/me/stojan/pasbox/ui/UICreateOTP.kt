@@ -1,10 +1,13 @@
 package me.stojan.pasbox.ui
 
 import android.Manifest
+import android.app.Activity
+import android.app.KeyguardManager
 import android.content.Context
 import android.content.pm.PackageManager
 import android.hardware.camera2.CameraManager
 import android.net.Uri
+import android.os.Build
 import android.transition.TransitionManager
 import android.util.AttributeSet
 import android.view.TextureView
@@ -12,17 +15,20 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
 import android.widget.LinearLayout
+import android.widget.TextView
 import androidx.core.content.ContextCompat
 import com.google.android.material.textfield.TextInputEditText
+import me.stojan.pasbox.App
 import me.stojan.pasbox.R
 import me.stojan.pasbox.barcode.BarcodeScanner
 import me.stojan.pasbox.dev.Log
 import me.stojan.pasbox.dev.decodeBase32
 import me.stojan.pasbox.dev.mainThreadOnly
+import me.stojan.pasbox.jobs.Jobs
 import me.stojan.pasbox.storage.secrets.OTPSecret
 import me.stojan.pasbox.totp.TOTP
 
-class UICreate2FA @JvmOverloads constructor(
+class UICreateOTP @JvmOverloads constructor(
   context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0
 ) : LinearLayout(context, attrs, defStyleAttr) {
   private val activity: UIActivity get() = context as UIActivity
@@ -35,6 +41,7 @@ class UICreate2FA @JvmOverloads constructor(
   private lateinit var title: TextInputEditText
   private lateinit var secret: TextInputEditText
   private lateinit var otp: TextInputEditText
+  private lateinit var save: TextView
 
   override fun onFinishInflate() {
     super.onFinishInflate()
@@ -45,6 +52,7 @@ class UICreate2FA @JvmOverloads constructor(
     title = valueLayout.findViewById(R.id.title)
     secret = valueLayout.findViewById(R.id.secret)
     otp = valueLayout.findViewById(R.id.otp)
+    save = valueLayout.findViewById(R.id.save)
   }
 
   override fun onAttachedToWindow() {
@@ -83,7 +91,7 @@ class UICreate2FA @JvmOverloads constructor(
         activity.disposeOnDestroy(barcodeScanner.results
           .flatMapMaybe { OTPSecret.parse(it.rawValue) }
           .doOnEach {
-            Log.v(this@UICreate2FA) {
+            Log.v(this@UICreateOTP) {
               text("URI")
               param("uri", it.value)
             }
@@ -91,7 +99,7 @@ class UICreate2FA @JvmOverloads constructor(
           .firstElement()
           .subscribe { uri ->
             mainThreadOnly {
-              Log.v(this@UICreate2FA) {
+              Log.v(this@UICreateOTP) {
                 text("OTP URI detected")
                 param("uri", uri)
 
@@ -115,6 +123,7 @@ class UICreate2FA @JvmOverloads constructor(
     val secret = uri.getQueryParameter("secret")!!
     val digits = Integer.parseInt(uri.getQueryParameter("digits") ?: "6")
     val algorithm = uri.getQueryParameter("algorithm")
+    val period = Integer.parseInt(uri.getQueryParameter("period") ?: "30")
 
     this.title.setText(label.replace(':', ' '))
     this.secret.setText(secret)
@@ -128,11 +137,60 @@ class UICreate2FA @JvmOverloads constructor(
             else -> TOTP.HMAC_SHA1
           }
         ).run {
-          init(secret.decodeBase32(), digits = digits)
+          init(secret.decodeBase32(), digits = digits, stepMs = period * 1000L)
           now()
         }
       )
     )
+
+    this.save.setOnClickListener {
+      saveSecret(uri)
+    }
+  }
+
+  private fun saveSecret(uri: Uri) {
+    activity.getSystemService(KeyguardManager::class.java)
+      .let { keyguardManager ->
+        activity.startActivityForResult(
+          keyguardManager.createConfirmDeviceCredentialIntent(
+            "Save OTP Secret",
+            "Provide your fingerprint / PIN / password / pattern to save the OTP secret to your device."
+          ), RequestCodes.UI_CREATE_2FA_PASSWORD_KEYGUARD
+        )
+
+        activity.disposeOnDestroy(activity.results.filter { RequestCodes.UI_CREATE_2FA_PASSWORD_KEYGUARD == it.first }
+          .take(1)
+          .subscribe {
+            when (it.second) {
+              Activity.RESULT_OK -> {
+                val otpData = OTPSecret.create(uri)
+
+                Jobs.schedule(activity, App.Components.Storage.secrets().save(otpData).ignoreElement()) {
+                  if (Build.VERSION.SDK_INT >= 28) {
+                    setImportantWhileForeground(true)
+                  } else {
+                    setMinimumLatency(0)
+                  }
+                  setOverrideDeadline(0)
+                }.second.subscribe {
+                  save.text = "Saved!"
+                }
+
+                Jobs.schedule(activity, App.Components.Storage.backups().backup(otpData)) {
+                  if (Build.VERSION.SDK_INT >= 28) {
+                    setImportantWhileForeground(true)
+                  } else {
+                    setMinimumLatency(0)
+                  }
+                  setOverrideDeadline(0)
+                }.second.subscribe {
+
+                }
+              }
+
+            }
+          })
+      }
   }
 
 }
