@@ -176,13 +176,22 @@ class BarcodeScanner(val cameraId: String, val textureView: TextureView) :
             param("sensorOrientation", sensorOrientation)
           }
 
-          outputSizes.firstOrNull { it.width.toLong() * it.height.toLong() < 1080L * 1920L }
+          outputSizes.also {
+            it.sortBy { it.height }
+          }
+            .firstOrNull { it.width >= width && it.height >= height }
             .let { minSize ->
+              Log.v(this) {
+                text("Output")
+                param("size", minSize)
+              }
+
               surfaceTexture.setDefaultBufferSize(minSize!!.width, minSize.height)
-              textureView.setTransform(Matrix().apply {
-                textureView.getTransform(this)
-                setScale(1f, minSize.width.toFloat() / minSize.height.toFloat())
-              })
+
+              textureView.setTransform(Matrix()
+                .also {
+                  it.setScale(1f, minSize.width.toFloat() / minSize.height.toFloat())
+                })
 
               imageReader?.apply { close() }
               imageReader = ImageReader.newInstance(minSize.width, minSize.height, ImageFormat.YUV_420_888, 2)
