@@ -46,7 +46,9 @@ class UIRecyclerAdapter(val activity: UIActivity) : RecyclerView.Adapter<UIRecyc
     }
 
     open fun onRecycled() {
-
+      if (itemView is UIRecyclerItem<*>) {
+        itemView.recycle()
+      }
     }
   }
 
@@ -101,12 +103,18 @@ class UIRecyclerAdapter(val activity: UIActivity) : RecyclerView.Adapter<UIRecyc
   class PagedHolder(itemView: View) : UIViewHolder(itemView) {
 
     fun bind(pair: Pair<SecretPublic, Secret>) {
-      (itemView as UISecret).bind(pair)
+      if (itemView is UIRecyclerItem<*>) {
+        @Suppress("UNCHECKED_CAST")
+        (itemView as UIRecyclerItem<Pair<SecretPublic, Secret>>).bind(pair)
+      }
     }
 
     override fun onRecycled() {
       super.onRecycled()
-      (itemView as UISecret).recycle()
+
+      if (itemView is UIRecyclerItem<*>) {
+        itemView.recycle()
+      }
     }
 
   }
