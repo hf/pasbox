@@ -72,14 +72,6 @@ class UICreateSecret @JvmOverloads constructor(
 
     picker.visibility = View.GONE
     layoutInflater.inflate(layout, content, true)
-      .also {
-        it.findViewById<UICreatePassword?>(R.id.card_create_secret_password)
-          ?.let {
-            it.onDone = {
-              this@UICreateSecret.onDone?.invoke()
-            }
-          }
-      }
   }
 
 }

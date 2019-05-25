@@ -53,11 +53,12 @@ import me.stojan.pasbox.storage.secrets.PasswordSecret
 
 class UICreatePassword @JvmOverloads constructor(
   context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0
-) : LinearLayout(context, attrs, defStyleAttr) {
+) : LinearLayout(context, attrs, defStyleAttr),
+  ChildOf<UICreateSecret> {
+
+  override val parentView: UICreateSecret by ChildOf.Auto()
 
   private val activity: UIActivity get() = context as UIActivity
-
-  var onDone: ((UICreatePassword) -> Unit)? = null
 
   lateinit var titleLayout: TextInputLayout
   lateinit var title: TextInputEditText
@@ -223,7 +224,7 @@ class UICreatePassword @JvmOverloads constructor(
       PasswordGenerator.getInstance()
         .run {
           generate(ASCIIPasswordGeneratorParams(length, multicase, digits, specials))
-      })
+        })
 
     passwordTextWatcher = object : TextWatcher {
       override fun afterTextChanged(s: Editable) {
@@ -271,7 +272,7 @@ class UICreatePassword @JvmOverloads constructor(
           ), RequestCodes.UI_CREATE_PASSWORD_KEYGUARD
         )
 
-        activity.disposeOnDestroy(activity.results.filter { RequestCodes.UI_CREATE_PASSWORD_KEYGUARD == it.first }
+        parentView.disposeOnRecycle(activity.results.filter { RequestCodes.UI_CREATE_PASSWORD_KEYGUARD == it.first }
           .take(1)
           .subscribe { (_, resultCode, _) ->
             mainThreadOnly {
@@ -302,7 +303,7 @@ class UICreatePassword @JvmOverloads constructor(
                       mainThreadOnly {
                         Log.v(this@UICreatePassword) { text("PasswordSecret saved") }
                         save.setText(R.string.password_saved)
-                        onDone?.invoke(this@UICreatePassword)
+                        parentView.onDone?.invoke()
                       }
                     }, {
                       mainThreadOnly {

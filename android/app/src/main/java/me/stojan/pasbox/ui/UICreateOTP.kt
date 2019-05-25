@@ -19,6 +19,7 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.core.content.ContextCompat
 import com.google.android.material.textfield.TextInputEditText
+import io.reactivex.android.schedulers.AndroidSchedulers
 import me.stojan.pasbox.App
 import me.stojan.pasbox.R
 import me.stojan.pasbox.barcode.BarcodeScanner
@@ -31,7 +32,10 @@ import me.stojan.pasbox.totp.TOTP
 
 class UICreateOTP @JvmOverloads constructor(
   context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0
-) : LinearLayout(context, attrs, defStyleAttr) {
+) : LinearLayout(context, attrs, defStyleAttr),
+  ChildOf<UICreateSecret> {
+  override val parentView: UICreateSecret by ChildOf.Auto()
+
   private val activity: UIActivity get() = context as UIActivity
 
   private lateinit var scanContainer: FrameLayout
@@ -61,7 +65,8 @@ class UICreateOTP @JvmOverloads constructor(
 
     when (ContextCompat.checkSelfPermission(activity, Manifest.permission.CAMERA)) {
       PackageManager.PERMISSION_DENIED -> {
-        activity.disposeOnDestroy(activity.permissions
+        parentView.disposeOnRecycle(
+          activity.permissions
           .filter { RequestCodes.UI_CREATE_2FA_REQUEST_CAMERA_PERMISSION == it.first }
           .firstElement()
           .subscribe {
@@ -94,7 +99,8 @@ class UICreateOTP @JvmOverloads constructor(
                 .get(CameraCharacteristics.LENS_FACING)
           } ?: cameraManager.cameraIdList.first(), scan)
 
-        activity.disposeOnDestroy(barcodeScanner.results
+        parentView.disposeOnRecycle(
+          barcodeScanner.results
           .flatMapMaybe { OTPSecret.parse(it.rawValue) }
           .doOnEach {
             Log.v(this@UICreateOTP) {
@@ -164,7 +170,7 @@ class UICreateOTP @JvmOverloads constructor(
           ), RequestCodes.UI_CREATE_2FA_PASSWORD_KEYGUARD
         )
 
-        activity.disposeOnDestroy(activity.results.filter { RequestCodes.UI_CREATE_2FA_PASSWORD_KEYGUARD == it.first }
+        parentView.disposeOnRecycle(activity.results.filter { RequestCodes.UI_CREATE_2FA_PASSWORD_KEYGUARD == it.first }
           .take(1)
           .subscribe {
             when (it.second) {
@@ -178,9 +184,11 @@ class UICreateOTP @JvmOverloads constructor(
                     setMinimumLatency(0)
                   }
                   setOverrideDeadline(0)
-                }.second.subscribe {
-                  save.text = "Saved!"
-                }
+                }.second
+                  .observeOn(AndroidSchedulers.mainThread())
+                  .subscribe {
+                    parentView.onDone?.invoke()
+                  }
 
                 Jobs.schedule(activity, App.Components.Storage.backups().backup(otpData)) {
                   if (Build.VERSION.SDK_INT >= 28) {
@@ -189,8 +197,6 @@ class UICreateOTP @JvmOverloads constructor(
                     setMinimumLatency(0)
                   }
                   setOverrideDeadline(0)
-                }.second.subscribe {
-
                 }
               }
 

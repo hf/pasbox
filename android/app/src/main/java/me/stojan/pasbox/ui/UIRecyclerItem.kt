@@ -16,7 +16,7 @@ abstract class UIRecyclerItem<T> @JvmOverloads constructor(
   private var _recycled = false
 
   protected val recycled get() = _recycled
-  protected val disposables = CompositeDisposable()
+  private val disposables = CompositeDisposable()
 
   fun bind(value: T) {
     _recycled = false
@@ -25,13 +25,14 @@ abstract class UIRecyclerItem<T> @JvmOverloads constructor(
 
   fun recycle() {
     onRecycle()
-    _recycled = false
+    disposables.dispose()
+    _recycled = true
   }
 
-  fun disposeOnDetach(vararg disposables: Disposable) {
+  fun disposeOnRecycle(vararg disposables: Disposable) {
     mainThreadOnly {
-      if (!isAttachedToWindow) {
-        throw RuntimeException("View ${this::class.java.simpleName} is not attached to window")
+      if (_recycled) {
+        throw RuntimeException("View ${this::class.java.simpleName} is recycled")
       }
 
       this.disposables.addAll(*disposables)
@@ -45,17 +46,4 @@ abstract class UIRecyclerItem<T> @JvmOverloads constructor(
   open fun onRecycle() {
 
   }
-
-  override fun onAttachedToWindow() {
-    super.onAttachedToWindow()
-
-    disposables.clear()
-  }
-
-  override fun onDetachedFromWindow() {
-    super.onDetachedFromWindow()
-
-    disposables.dispose()
-  }
-
 }

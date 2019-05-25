@@ -126,14 +126,14 @@ class UISecretPassword @JvmOverloads constructor(
         ), RequestCodes.UI_OPEN_PASSWORD_KEYGUARD
       )
 
-      disposeOnDetach(activity.results.filter { RequestCodes.UI_OPEN_PASSWORD_KEYGUARD == it.first }
+      disposeOnRecycle(activity.results.filter { RequestCodes.UI_OPEN_PASSWORD_KEYGUARD == it.first }
         .take(1)
         .observeOn(AndroidSchedulers.mainThread())
         .subscribe { (_, resultCode, _) ->
           if (Activity.RESULT_OK == resultCode) {
             open.setText(R.string.password_opening)
 
-            disposeOnDetach(
+            disposeOnRecycle(
               App.Components.Storage.secrets()
               .open(Single.just(Pair(public, secret)))
               .observeOn(AndroidSchedulers.mainThread())

@@ -39,7 +39,7 @@ class UISetupMasterPassword @JvmOverloads constructor(
       context.getSystemService(ActivityManager::class.java).getMemoryInfo(memoryInfo)
       memory(memoryInfo)
 
-      progressText.state = 0
+      progressText.transition = 0
 
       this@UISetupMasterPassword.keepScreenOn = true
 
@@ -84,7 +84,7 @@ class UISetupMasterPassword @JvmOverloads constructor(
       progressBar.max = securityDuration
       progressBar.post(progressBarUpdate)
 
-      progressText.state = 2
+      progressText.transition = 2
 
       activity.disposeOnPause(
         disposeOnDisconnect(
@@ -174,7 +174,7 @@ class UISetupMasterPassword @JvmOverloads constructor(
         progressBar.postDelayed(this, 250)
       } else {
         progressBar.progress = progressBar.max
-        progressText.state = 5
+        progressText.transition = 5
         progressBar.isIndeterminate = true
       }
     }
@@ -221,13 +221,13 @@ class UISetupMasterPassword @JvmOverloads constructor(
     progressBar = findViewById(R.id.progress)
     progressText = findViewById(R.id.progress_text)
 
-    progressText.states = intArrayOf(
-      /* 0: */ R.string.setup_master_password_measuring_performance_1, 3000, 1,
-      /* 1: */ R.string.setup_master_password_measuring_performance_2, 2000, 0,
-      /* 2: */ R.string.setup_master_password_securing_1, 3500, 3,
-      /* 3: */ R.string.setup_master_password_securing_2, 2500, 4,
-      /* 4: */ R.string.setup_master_password_securing_3, 2500, 2,
-      /* 5: */ R.string.setup_master_password_finishing_up, 0, -1
+    progressText.transitions = intArrayOf(
+      /* 0: */ 3000, 1, R.string.setup_master_password_measuring_performance_1,
+      /* 1: */ 2000, 0, R.string.setup_master_password_measuring_performance_2,
+      /* 2: */ 3500, 3, R.string.setup_master_password_securing_1,
+      /* 3: */ 2500, 4, R.string.setup_master_password_securing_2,
+      /* 4: */ 2500, 2, R.string.setup_master_password_securing_3,
+      /* 5: */ 0, -1, R.string.setup_master_password_finishing_up
     )
   }
 
