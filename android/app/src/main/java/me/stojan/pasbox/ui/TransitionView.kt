@@ -5,7 +5,6 @@ import android.transition.Transition
 import android.transition.TransitionManager
 import android.util.AttributeSet
 import android.view.View
-import android.view.ViewGroup
 import android.widget.FrameLayout
 
 open class TransitionView @JvmOverloads constructor(
@@ -30,13 +29,14 @@ open class TransitionView @JvmOverloads constructor(
         var nextChild = getChildAt(child)
 
         TransitionManager.beginDelayedTransition(
-          if (null != parent) {
-            parent as ViewGroup
-          } else {
-            this
-          },
-          apply?.invoke(transition, nextChild, currentChild)
+          this,
+          prepare?.invoke(value, nextChild, currentChild)
         )
+
+        apply?.invoke(value, nextChild, currentChild)
+
+        TransitionManager.beginDelayedTransition(this)
+        apply?.invoke(value, nextChild, currentChild)
 
         val delay = transitions[delayIndex(value)]
         val jump = transitions[jumpIndex(value)]
@@ -66,12 +66,20 @@ open class TransitionView @JvmOverloads constructor(
       transition = 0
     }
 
-  private var _apply: ((state: Int, new: View, old: View) -> Transition?)? = null
-  var apply: ((state: Int, new: View, old: View) -> Transition?)?
+  private var _apply: ((state: Int, new: View, old: View) -> Unit)? = null
+  var apply: ((state: Int, new: View, old: View) -> Unit)?
     get() = _apply
     set(value) {
       _apply = value
     }
+
+  private var _prepare: ((state: Int, new: View, old: View) -> Transition?)? = null
+  var prepare: ((sate: Int, new: View, old: View) -> Transition?)?
+    get() = _prepare
+    set(value) {
+      _prepare = value
+    }
+
 
   override fun onFinishInflate() {
     super.onFinishInflate()
