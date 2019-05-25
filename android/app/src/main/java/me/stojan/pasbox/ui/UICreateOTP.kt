@@ -5,6 +5,7 @@ import android.app.Activity
 import android.app.KeyguardManager
 import android.content.Context
 import android.content.pm.PackageManager
+import android.hardware.camera2.CameraCharacteristics
 import android.hardware.camera2.CameraManager
 import android.net.Uri
 import android.os.Build
@@ -86,7 +87,12 @@ class UICreateOTP @JvmOverloads constructor(
         scanContainer.removeAllViews()
         scan = TextureView(context)
         scanContainer.addView(scan)
-        barcodeScanner = BarcodeScanner(cameraManager.cameraIdList.first(), scan)
+        barcodeScanner = BarcodeScanner(
+          cameraManager.cameraIdList.firstOrNull {
+            CameraCharacteristics.LENS_FACING_BACK ==
+              cameraManager.getCameraCharacteristics(it)
+                .get(CameraCharacteristics.LENS_FACING)
+          } ?: cameraManager.cameraIdList.first(), scan)
 
         activity.disposeOnDestroy(barcodeScanner.results
           .flatMapMaybe { OTPSecret.parse(it.rawValue) }

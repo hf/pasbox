@@ -25,6 +25,8 @@
 
 package me.stojan.pasbox.dev
 
+import android.content.Context
+import android.view.View
 import me.stojan.pasbox.BuildConfig
 
 object Log {
@@ -116,6 +118,11 @@ object Log {
             builder.append(", ")
           }
           builder.append(" >")
+        }
+        is Context, is View -> {
+          builder.append(value.javaClass.simpleName)
+            .append('@')
+            .append((0xFF and System.identityHashCode(value)).toString(16))
         }
         else -> builder.append(value.javaClass.simpleName)
           .append('@')

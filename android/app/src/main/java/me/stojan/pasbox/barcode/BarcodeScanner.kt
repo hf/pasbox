@@ -1,6 +1,7 @@
 package me.stojan.pasbox.barcode
 
 import android.annotation.SuppressLint
+import android.app.Activity
 import android.graphics.ImageFormat
 import android.graphics.Matrix
 import android.graphics.SurfaceTexture
@@ -15,19 +16,27 @@ import android.os.Handler
 import android.os.Looper
 import android.view.Surface
 import android.view.TextureView
+import com.google.android.gms.tasks.OnFailureListener
+import com.google.android.gms.tasks.OnSuccessListener
 import com.google.firebase.ml.vision.FirebaseVision
 import com.google.firebase.ml.vision.barcode.FirebaseVisionBarcode
+import com.google.firebase.ml.vision.barcode.FirebaseVisionBarcodeDetectorOptions
 import com.google.firebase.ml.vision.common.FirebaseVisionImage
 import com.google.firebase.ml.vision.common.FirebaseVisionImageMetadata
 import io.reactivex.Observable
 import io.reactivex.subjects.PublishSubject
+import me.stojan.pasbox.App
+import me.stojan.pasbox.LifecycleCallback
 import me.stojan.pasbox.dev.Log
 import me.stojan.pasbox.dev.mainThreadOnly
 import java.util.concurrent.atomic.AtomicBoolean
 
-class BarcodeScanner(val cameraId: String, val textureView: TextureView) :
+class BarcodeScanner(var cameraId: String, val textureView: TextureView) :
   TextureView.SurfaceTextureListener,
-  ImageReader.OnImageAvailableListener {
+  ImageReader.OnImageAvailableListener,
+  OnSuccessListener<MutableList<FirebaseVisionBarcode>>,
+  OnFailureListener,
+  LifecycleCallback {
 
   init {
     textureView.surfaceTextureListener = this
@@ -44,12 +53,23 @@ class BarcodeScanner(val cameraId: String, val textureView: TextureView) :
   private val inProgress = AtomicBoolean(false)
 
   private val detector = FirebaseVision.getInstance()
-    .visionBarcodeDetector
+    .getVisionBarcodeDetector(
+      FirebaseVisionBarcodeDetectorOptions.Builder()
+        .setBarcodeFormats(
+          FirebaseVisionBarcode.FORMAT_QR_CODE,
+          FirebaseVisionBarcode.FORMAT_AZTEC,
+          FirebaseVisionBarcode.FORMAT_DATA_MATRIX
+        )
+        .build()
+    )
 
   private var camera: CameraDevice? = null
   private var cameraSession: CameraCaptureSession? = null
   private var imageReader: ImageReader? = null
   private var surfaceTexture: SurfaceTexture? = null
+  private var surface: Surface? = null
+  private var surfaceWidth: Int = 0
+  private var surfaceHeight: Int = 0
 
   private var rotation: Int = -1
 
@@ -59,6 +79,69 @@ class BarcodeScanner(val cameraId: String, val textureView: TextureView) :
     handlerSet.open()
     Looper.loop()
   }, "barcode-scanner-$cameraId")
+
+  private val cameraDeviceStateCallback = object : CameraDevice.StateCallback() {
+    override fun onOpened(camera: CameraDevice) {
+      Log.v(this@BarcodeScanner) {
+        text("Opened camera")
+      }
+
+      this@BarcodeScanner.camera = camera
+
+      camera.createCaptureSession(
+        arrayListOf(surface, imageReader!!.surface),
+        cameraCaptureSessionStateCallback,
+        handler
+      )
+    }
+
+    override fun onDisconnected(camera: CameraDevice) {
+      Log.v(this@BarcodeScanner) {
+        text("Disconnected from camera")
+      }
+      this@BarcodeScanner.camera = null
+    }
+
+    override fun onError(camera: CameraDevice, error: Int) {
+      Log.e(this@BarcodeScanner) {
+        text("Error on camera")
+        param("error", error)
+      }
+      this@BarcodeScanner.camera = null
+    }
+
+  }
+
+  private val cameraCaptureSessionStateCallback = object : CameraCaptureSession.StateCallback() {
+    override fun onConfigured(session: CameraCaptureSession) {
+      cameraSession = session
+
+      Log.v(this@BarcodeScanner) {
+        text("Capture session is configured")
+        param("session", session)
+      }
+
+      imageReader!!.setOnImageAvailableListener(this@BarcodeScanner, handler)
+
+      session.setRepeatingRequest(camera!!.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW)
+        .apply {
+          addTarget(surface!!)
+          addTarget(imageReader!!.surface)
+        }
+        .build(),
+        null,
+        null)
+    }
+
+    override fun onConfigureFailed(session: CameraCaptureSession) {
+      cameraSession = null
+
+      Log.e(this@BarcodeScanner) {
+        text("Capture session configuration failed")
+      }
+    }
+
+  }
 
   private fun start(): Handler {
     Log.v(this) {
@@ -97,6 +180,9 @@ class BarcodeScanner(val cameraId: String, val textureView: TextureView) :
       surfaceTexture?.apply { release() }
       surfaceTexture = null
 
+      surface?.apply { release() }
+      surface = null
+
       imageReader?.apply { close() }
       imageReader = null
 
@@ -111,35 +197,6 @@ class BarcodeScanner(val cameraId: String, val textureView: TextureView) :
     }
   }
 
-  fun processImage(image: Image, rotation: Int) {
-    if (!inProgress.getAndSet(true)) {
-      if (Thread.currentThread() != thread) {
-        throw RuntimeException("Unknown thread ${Thread.currentThread()}")
-      }
-
-      detector.detectInImage(
-        FirebaseVisionImage.fromMediaImage(image, rotation)
-      )
-        .addOnSuccessListener {
-          it.forEach {
-            Log.v(this@BarcodeScanner) {
-              text("Detected barcode")
-              param("barcode.rawValue", it.rawValue)
-            }
-          }
-
-          it.forEach {
-            resultsSubject.onNext(it)
-          }
-
-          inProgress.set(false)
-        }
-        .addOnFailureListener {
-          inProgress.set(false)
-        }
-    }
-  }
-
   @SuppressLint("MissingPermission")
   override fun onSurfaceTextureAvailable(surfaceTexture: SurfaceTexture, width: Int, height: Int) {
     Log.v(this) {
@@ -149,109 +206,15 @@ class BarcodeScanner(val cameraId: String, val textureView: TextureView) :
     }
 
     mainThreadOnly {
+      this.surfaceWidth = width
+      this.surfaceHeight = height
       this.surfaceTexture = surfaceTexture
+      this.surface = Surface(surfaceTexture)
+
+      App.INSTANCE.addLifecycle(textureView.context as Activity, this)
 
       start()
-
-      context.getSystemService(CameraManager::class.java)
-        .let { cameraManager ->
-          val cameraCharacteristics = cameraManager.getCameraCharacteristics(cameraId)
-
-          val streamMap = cameraCharacteristics.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP)!!
-          val sensorOrientation = cameraCharacteristics.get(CameraCharacteristics.SENSOR_ORIENTATION)!!
-          val outputSizes = streamMap.getOutputSizes(SurfaceTexture::class.java)
-
-          rotation = when (sensorOrientation) {
-            0 -> FirebaseVisionImageMetadata.ROTATION_0
-            90 -> FirebaseVisionImageMetadata.ROTATION_90
-            180 -> FirebaseVisionImageMetadata.ROTATION_180
-            270 -> FirebaseVisionImageMetadata.ROTATION_270
-            else -> throw RuntimeException("Unknown sensor orientation $sensorOrientation")
-          }
-
-          Log.v(this) {
-            text("Camera info")
-            param("id", cameraId)
-            param("outputSizes", outputSizes)
-            param("sensorOrientation", sensorOrientation)
-          }
-
-          outputSizes.also {
-            it.sortBy { it.height }
-          }
-            .firstOrNull { it.width >= width && it.height >= height }
-            .let { minSize ->
-              Log.v(this) {
-                text("Output")
-                param("size", minSize)
-              }
-
-              surfaceTexture.setDefaultBufferSize(minSize!!.width, minSize.height)
-
-              textureView.setTransform(Matrix()
-                .also {
-                  it.setScale(1f, minSize.width.toFloat() / minSize.height.toFloat())
-                })
-
-              imageReader?.apply { close() }
-              imageReader = ImageReader.newInstance(minSize.width, minSize.height, ImageFormat.YUV_420_888, 2)
-            }
-
-          val surface = Surface(surfaceTexture)
-
-          cameraManager.openCamera(cameraId, object : CameraDevice.StateCallback() {
-            override fun onOpened(camera: CameraDevice) {
-              Log.v(this@BarcodeScanner) {
-                text("Opened camera")
-              }
-
-              this@BarcodeScanner.camera = camera
-
-              camera.createCaptureSession(
-                arrayListOf(surface, imageReader!!.surface),
-                object : CameraCaptureSession.StateCallback() {
-
-                  override fun onConfigured(session: CameraCaptureSession) {
-                    this@BarcodeScanner.cameraSession = session
-
-                    imageReader!!.setOnImageAvailableListener(this@BarcodeScanner, handler)
-
-                    session.setRepeatingRequest(camera.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW)
-                      .apply {
-                        addTarget(surface)
-                        addTarget(imageReader!!.surface)
-                      }
-                      .build(),
-                      null,
-                      null)
-                  }
-
-                  override fun onConfigureFailed(session: CameraCaptureSession) {
-                    this@BarcodeScanner.cameraSession = null
-                  }
-
-                },
-                handler
-              )
-            }
-
-            override fun onDisconnected(camera: CameraDevice) {
-              Log.v(this@BarcodeScanner) {
-                text("Disconnected from camera")
-              }
-              this@BarcodeScanner.camera = null
-            }
-
-            override fun onError(camera: CameraDevice, error: Int) {
-              Log.e(this@BarcodeScanner) {
-                text("Error on camera")
-                param("error", error)
-              }
-              this@BarcodeScanner.camera = null
-            }
-
-          }, handler)
-        }
+      openCamera()
     }
   }
 
@@ -271,13 +234,150 @@ class BarcodeScanner(val cameraId: String, val textureView: TextureView) :
       text("Surface destroyed")
     }
 
+    App.INSTANCE.removeLifecycle(textureView.context as Activity, this)
+
     quit()
     return false
+  }
+
+  fun switchCamera(cameraId: String) {
+    this.cameraId = cameraId
+
+    if (null != cameraSession) {
+      openCamera()
+    }
+  }
+
+  @SuppressLint("MissingPermission")
+  private fun openCamera() {
+    cameraSession?.apply {
+      abortCaptures()
+      close()
+    }
+    cameraSession = null
+
+    camera?.apply { close() }
+    camera = null
+
+    imageReader?.apply { close() }
+    imageReader = null
+
+    context.getSystemService(CameraManager::class.java)
+      .let { cameraManager ->
+        val cameraCharacteristics = cameraManager.getCameraCharacteristics(cameraId)
+
+        val streamMap = cameraCharacteristics.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP)!!
+        val sensorOrientation = cameraCharacteristics.get(CameraCharacteristics.SENSOR_ORIENTATION)!!
+        val outputSizes = streamMap.getOutputSizes(SurfaceTexture::class.java)
+
+        rotation = when (sensorOrientation) {
+          0 -> FirebaseVisionImageMetadata.ROTATION_0
+          90 -> FirebaseVisionImageMetadata.ROTATION_90
+          180 -> FirebaseVisionImageMetadata.ROTATION_180
+          270 -> FirebaseVisionImageMetadata.ROTATION_270
+          else -> throw RuntimeException("Unknown sensor orientation $sensorOrientation")
+        }
+
+        Log.v(this@BarcodeScanner) {
+          text("Camera info")
+          param("id", cameraId)
+          param("outputSizes", outputSizes)
+          param("sensorOrientation", sensorOrientation)
+        }
+
+        outputSizes.apply {
+          sortBy { Math.min(it.width, it.height) }
+        }
+          .firstOrNull { it.width >= surfaceWidth && it.height >= surfaceHeight }!!
+          .let { minSize ->
+            Log.v(this@BarcodeScanner) {
+              text("Camera output size")
+              param("size", minSize)
+            }
+
+            surfaceTexture!!.setDefaultBufferSize(minSize.width, minSize.height)
+
+            textureView.setTransform(Matrix()
+              .also {
+                it.setScale(1f, 1f)
+                it.postScale(1f, minSize.width.toFloat() / minSize.height.toFloat())
+              })
+
+            imageReader = ImageReader.newInstance(minSize.width, minSize.height, ImageFormat.YUV_420_888, 2)
+          }
+
+        cameraManager.openCamera(cameraId, cameraDeviceStateCallback, handler)
+      }
   }
 
   override fun onImageAvailable(reader: ImageReader) {
     reader.acquireLatestImage()?.use {
       processImage(it, rotation)
     }
+  }
+
+  private fun processImage(image: Image, rotation: Int) {
+    if (!inProgress.getAndSet(true)) {
+      if (Thread.currentThread() != thread) {
+        throw RuntimeException("Unknown thread ${Thread.currentThread()}")
+      }
+
+      detector.detectInImage(
+        FirebaseVisionImage.fromMediaImage(image, rotation)
+      )
+        .addOnSuccessListener(this)
+        .addOnFailureListener(this)
+    }
+  }
+
+  override fun onSuccess(result: MutableList<FirebaseVisionBarcode>?) {
+    try {
+      Log.v(this) {
+        text("Detected")
+        param("barcodes", result)
+      }
+
+      mainThreadOnly {
+        result?.forEach { resultsSubject.onNext(it) }
+      }
+    } finally {
+      inProgress.set(false)
+    }
+  }
+
+  override fun onFailure(exception: Exception) {
+    try {
+      Log.e(this) {
+        text("Failed to detect barcodes")
+        error(exception)
+      }
+    } finally {
+      inProgress.set(false)
+    }
+  }
+
+  override fun onResume() {
+    if (null != surfaceTexture) {
+      openCamera()
+    }
+  }
+
+  override fun onPause() {
+    cameraSession?.apply {
+      abortCaptures()
+      close()
+    }
+
+    cameraSession = null
+
+    camera?.apply {
+      close()
+    }
+    camera = null
+
+    imageReader?.apply {
+      close()
+    }
+    imageReader = null
   }
 }

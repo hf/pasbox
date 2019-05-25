@@ -25,13 +25,23 @@
 
 package me.stojan.pasbox
 
+import android.app.Activity
 import android.app.Application
+import android.os.Bundle
 import io.reactivex.android.schedulers.AndroidSchedulers
 import io.reactivex.disposables.CompositeDisposable
 import me.stojan.pasbox.dev.Log
+import me.stojan.pasbox.dev.mainThreadOnly
 import me.stojan.pasbox.jobs.Jobs
 import me.stojan.pasbox.safetynet.SafetyNetAttestationJobScheduled
 import me.stojan.pasbox.storage.KV
+import java.lang.ref.WeakReference
+import java.util.*
+
+interface LifecycleCallback {
+  fun onResume()
+  fun onPause()
+}
 
 class App : Application(), HasComponents {
   companion object {
@@ -43,6 +53,60 @@ class App : Application(), HasComponents {
 
   private val disposables = CompositeDisposable()
   private lateinit var _components: AppComponents
+
+  private val lifecycleMap = WeakHashMap<Activity, ArrayList<WeakReference<LifecycleCallback>>>()
+  private val callbacks = object : ActivityLifecycleCallbacks {
+    override fun onActivityPaused(activity: Activity) {
+      Log.v(this@App) {
+        text("Paused")
+        param("activity", activity)
+      }
+
+      mainThreadOnly {
+        lifecycleMap[activity]?.apply {
+          removeAll { null == it.get() }
+          forEach {
+            it.get()?.onPause()
+          }
+        }
+      }
+    }
+
+    override fun onActivityResumed(activity: Activity?) {
+      Log.v(this@App) {
+        text("Resumed")
+        param("activity", activity)
+      }
+
+      mainThreadOnly {
+        lifecycleMap[activity]?.apply {
+          removeAll { null == it.get() }
+          forEach {
+            it.get()?.onResume()
+          }
+        }
+      }
+    }
+
+    override fun onActivityStarted(activity: Activity?) {
+    }
+
+    override fun onActivityDestroyed(activity: Activity?) {
+      mainThreadOnly {
+        lifecycleMap[activity] = null
+      }
+    }
+
+    override fun onActivitySaveInstanceState(activity: Activity?, outState: Bundle?) {
+    }
+
+    override fun onActivityStopped(activity: Activity?) {
+    }
+
+    override fun onActivityCreated(activity: Activity?, savedInstanceState: Bundle?) {
+    }
+
+  }
 
   override val components: AppComponents get() = _components
 
@@ -57,6 +121,8 @@ class App : Application(), HasComponents {
   }
 
   private fun startup() {
+    registerActivityLifecycleCallbacks(callbacks)
+
     disposables.add(
       components.Storage.kvstore().watch(KV.DEVICE_ID, nulls = false, get = false).observeOn(
         AndroidSchedulers.mainThread()
@@ -64,5 +130,21 @@ class App : Application(), HasComponents {
         Log.v(this@App) { text("Device ID was updated, scheduling SafetyNet attestation") }
         Jobs.schedule(this@App, SafetyNetAttestationJobScheduled.info)
       })
+  }
+
+  fun addLifecycle(forActivity: Activity, callback: LifecycleCallback) {
+    mainThreadOnly {
+      lifecycleMap[forActivity] = (lifecycleMap[forActivity] ?: ArrayList(2))
+        .apply {
+          removeAll { null == it.get() || callback == it.get() }
+          add(WeakReference(callback))
+        }
+    }
+  }
+
+  fun removeLifecycle(forActivity: Activity, callback: LifecycleCallback) {
+    mainThreadOnly {
+      lifecycleMap[forActivity]?.removeAll { null == it.get() || callback == it.get() }
+    }
   }
 }
