@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+  <declare-styleable name="KeyguardButton">
+    <attr name="title" format="string"/>
+    <attr name="description" format="string"/>
+    <attr name="initial" format="string"/>
+    <attr name="failure" format="string"/>
+    <attr name="success" format="string"/>
+  </declare-styleable>
+</resources>

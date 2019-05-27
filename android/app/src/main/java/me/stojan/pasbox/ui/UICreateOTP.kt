@@ -1,40 +1,36 @@
 package me.stojan.pasbox.ui
 
 import android.Manifest
-import android.app.Activity
-import android.app.KeyguardManager
 import android.content.Context
 import android.content.pm.PackageManager
 import android.hardware.camera2.CameraCharacteristics
 import android.hardware.camera2.CameraManager
 import android.net.Uri
-import android.os.Build
-import android.transition.TransitionManager
 import android.util.AttributeSet
 import android.view.TextureView
 import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
 import android.widget.LinearLayout
-import android.widget.TextView
 import androidx.core.content.ContextCompat
 import com.google.android.material.textfield.TextInputEditText
-import io.reactivex.android.schedulers.AndroidSchedulers
-import me.stojan.pasbox.App
 import me.stojan.pasbox.R
 import me.stojan.pasbox.barcode.BarcodeScanner
 import me.stojan.pasbox.dev.Log
 import me.stojan.pasbox.dev.decodeBase32
 import me.stojan.pasbox.dev.mainThreadOnly
-import me.stojan.pasbox.jobs.Jobs
 import me.stojan.pasbox.storage.secrets.OTPSecret
 import me.stojan.pasbox.totp.TOTP
 
 class UICreateOTP @JvmOverloads constructor(
   context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0
 ) : LinearLayout(context, attrs, defStyleAttr),
-  ChildOf<UICreateSecret> {
+  ChildOf<UICreateSecret>,
+  ImplicitSceneRoot,
+  KeyguardButton.Callbacks {
+
   override val parentView: UICreateSecret by ChildOf.Auto()
+  override val sceneRoot: ViewGroup? by ImplicitSceneRoot.Auto
 
   private val activity: UIActivity get() = context as UIActivity
 
@@ -46,7 +42,9 @@ class UICreateOTP @JvmOverloads constructor(
   private lateinit var title: TextInputEditText
   private lateinit var secret: TextInputEditText
   private lateinit var otp: TextInputEditText
-  private lateinit var save: TextView
+  private lateinit var save: KeyguardButton
+
+  private var uri: Uri? = null
 
   override fun onFinishInflate() {
     super.onFinishInflate()
@@ -58,6 +56,8 @@ class UICreateOTP @JvmOverloads constructor(
     secret = valueLayout.findViewById(R.id.secret)
     otp = valueLayout.findViewById(R.id.otp)
     save = valueLayout.findViewById(R.id.save)
+    save.requestCode = RequestCodes.UI_CREATE_2FA_PASSWORD_KEYGUARD
+    save.callbacks = this
   }
 
   override fun onAttachedToWindow() {
@@ -67,13 +67,13 @@ class UICreateOTP @JvmOverloads constructor(
       PackageManager.PERMISSION_DENIED -> {
         parentView.disposeOnRecycle(
           activity.permissions
-          .filter { RequestCodes.UI_CREATE_2FA_REQUEST_CAMERA_PERMISSION == it.first }
-          .firstElement()
-          .subscribe {
-            when (it.third[0]) {
-              PackageManager.PERMISSION_GRANTED -> scanBarcode()
+            .filter { RequestCodes.UI_CREATE_2FA_REQUEST_CAMERA_PERMISSION == it.first }
+            .firstElement()
+            .subscribe {
+              when (it.third[0]) {
+                PackageManager.PERMISSION_GRANTED -> scanBarcode()
+              }
             }
-          }
         )
 
         activity.requestPermissions(
@@ -101,36 +101,38 @@ class UICreateOTP @JvmOverloads constructor(
 
         parentView.disposeOnRecycle(
           barcodeScanner.results
-          .flatMapMaybe { OTPSecret.parse(it.rawValue) }
-          .doOnEach {
-            Log.v(this@UICreateOTP) {
-              text("URI")
-              param("uri", it.value)
-            }
-          }
-          .firstElement()
-          .subscribe { uri ->
-            mainThreadOnly {
+            .flatMapMaybe { OTPSecret.parse(it.rawValue) }
+            .doOnEach {
               Log.v(this@UICreateOTP) {
-                text("OTP URI detected")
-                param("uri", uri)
-
-                scanContainer.removeAllViews()
-                setupSecret(uri)
-
-                post {
-                  TransitionManager.beginDelayedTransition(parent as ViewGroup)
-
-                  scanContainer.visibility = View.GONE
-                  valueLayout.visibility = View.VISIBLE
-                }
+                text("URI")
+                param("uri", it.value)
               }
             }
-          })
+            .firstElement()
+            .subscribe { uri ->
+              mainThreadOnly {
+                Log.v(this@UICreateOTP) {
+                  text("OTP URI detected")
+                  param("uri", uri)
+
+                  scanContainer.removeAllViews()
+                  setupSecret(uri)
+
+                  post {
+                    beginDelayedTransition()
+
+                    scanContainer.visibility = View.GONE
+                    valueLayout.visibility = View.VISIBLE
+                  }
+                }
+              }
+            })
       }
   }
 
   private fun setupSecret(uri: Uri) {
+    this.uri = uri
+
     val label = uri.lastPathSegment!!
     val secret = uri.getQueryParameter("secret")!!
     val digits = Integer.parseInt(uri.getQueryParameter("digits") ?: "6")
@@ -154,55 +156,31 @@ class UICreateOTP @JvmOverloads constructor(
         }
       )
     )
-
-    this.save.setOnClickListener {
-      saveSecret(uri)
-    }
   }
 
-  private fun saveSecret(uri: Uri) {
-    activity.getSystemService(KeyguardManager::class.java)
-      .let { keyguardManager ->
-        activity.startActivityForResult(
-          keyguardManager.createConfirmDeviceCredentialIntent(
-            "Save OTP Secret",
-            "Provide your fingerprint / PIN / password / pattern to save the OTP secret to your device."
-          ), RequestCodes.UI_CREATE_2FA_PASSWORD_KEYGUARD
-        )
+  override fun onSuccess(button: KeyguardButton) {
+    super.onSuccess(button)
 
-        parentView.disposeOnRecycle(activity.results.filter { RequestCodes.UI_CREATE_2FA_PASSWORD_KEYGUARD == it.first }
-          .take(1)
-          .subscribe {
-            when (it.second) {
-              Activity.RESULT_OK -> {
-                val otpData = OTPSecret.create(uri)
+    parentView.disposeOnRecycle(
+      parentView.save(OTPSecret.create(uri!!))
+        .subscribe({
+          Log.v(this@UICreateOTP) {
+            text("OTP data saved")
+          }
 
-                Jobs.schedule(activity, App.Components.Storage.secrets().save(otpData).ignoreElement()) {
-                  if (Build.VERSION.SDK_INT >= 28) {
-                    setImportantWhileForeground(true)
-                  } else {
-                    setMinimumLatency(0)
-                  }
-                  setOverrideDeadline(0)
-                }.second
-                  .observeOn(AndroidSchedulers.mainThread())
-                  .subscribe {
-                    parentView.onDone?.invoke()
-                  }
+          mainThreadOnly {
+            parentView.onDone?.invoke()
+          }
+        }, {
+          Log.e(this@UICreateOTP) {
+            text("OTP data failed to save")
+            error(it)
+          }
 
-                Jobs.schedule(activity, App.Components.Storage.backups().backup(otpData)) {
-                  if (Build.VERSION.SDK_INT >= 28) {
-                    setImportantWhileForeground(true)
-                  } else {
-                    setMinimumLatency(0)
-                  }
-                  setOverrideDeadline(0)
-                }
-              }
+          mainThreadOnly {
 
-            }
-          })
-      }
+          }
+        })
+    )
   }
-
 }

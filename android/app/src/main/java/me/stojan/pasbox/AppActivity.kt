@@ -79,8 +79,12 @@ abstract class AppActivity : AppCompatActivity() {
 
     _navigationDrawer = findViewById(R.id.navigation_drawer)
     _floatingAction = findViewById(R.id.floating_action)
+
     _content = findViewById(R.id.content)
+    _content.setTag(R.id.implicit_scene_root, true)
+
     _recycler = findViewById(R.id.recycler)
+    _recycler.setTag(R.id.implicit_scene_root, true)
   }
 
   override fun unbindService(conn: ServiceConnection) {

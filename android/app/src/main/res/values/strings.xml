@@ -103,4 +103,14 @@
   <string name="create_secret_password">Password</string>
   <string name="create_secret_otp">2FA (OTP)</string>
   <string name="create_secret_other">Other</string>
+  <string
+    name="create_otp_keyguard_description">Provide your fingerprint, PIN, pattern or password to save the OTP.</string>
+  <string name="create_otp_keyguard_title">Save OTP</string>
+
+  <string name="touch_to_open">Touch to open</string>
+  <string name="touch_to_save">Touch to save</string>
+  <string name="save_failed">Uh-oh, saving failed</string>
+  <string name="save_success">Saved!</string>
+  <string name="open_failed">Uh-oh, opening failed</string>
+  <string name="open_success">Opened!</string>
 </resources>

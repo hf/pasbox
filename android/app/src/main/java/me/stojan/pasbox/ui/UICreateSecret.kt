@@ -26,15 +26,22 @@
 package me.stojan.pasbox.ui
 
 import android.content.Context
+import android.os.Build
 import android.transition.ChangeBounds
 import android.transition.Fade
-import android.transition.TransitionManager
 import android.transition.TransitionSet
 import android.util.AttributeSet
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import io.reactivex.Completable
+import io.reactivex.Single
+import io.reactivex.android.schedulers.AndroidSchedulers
+import me.stojan.pasbox.App
 import me.stojan.pasbox.R
+import me.stojan.pasbox.jobs.Jobs
+import me.stojan.pasbox.storage.SecretPrivate
+import me.stojan.pasbox.storage.SecretPublic
 
 class UICreateSecret @JvmOverloads constructor(
   context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0
@@ -64,8 +71,8 @@ class UICreateSecret @JvmOverloads constructor(
   }
 
   private inline fun pick(layout: Int): (View) -> Unit = { view ->
-    TransitionManager.beginDelayedTransition(
-      this.parent as ViewGroup, TransitionSet()
+    beginDelayedTransition(
+      TransitionSet()
         .addTransition(Fade())
         .addTransition(ChangeBounds())
     )
@@ -74,4 +81,31 @@ class UICreateSecret @JvmOverloads constructor(
     layoutInflater.inflate(layout, content, true)
   }
 
+  fun save(data: Single<Pair<SecretPublic, SecretPrivate>>) =
+    Completable.mergeDelayError(
+      arrayListOf(
+        Jobs.schedule(
+          activity, App.Components.Storage.secrets()
+            .save(data).ignoreElement()
+        ) {
+          if (Build.VERSION.SDK_INT >= 28) {
+            setImportantWhileForeground(true)
+          } else {
+            setMinimumLatency(0)
+          }
+          setOverrideDeadline(0)
+        }.second,
+        Jobs.schedule(
+          activity, App.Components.Storage.backups()
+            .backup(data)
+        ) {
+          if (Build.VERSION.SDK_INT >= 28) {
+            setImportantWhileForeground(true)
+          } else {
+            setMinimumLatency(0)
+          }
+          setOverrideDeadline(0)
+        }.second
+      )
+    ).observeOn(AndroidSchedulers.mainThread())
 }

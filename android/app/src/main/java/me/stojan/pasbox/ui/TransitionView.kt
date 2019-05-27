@@ -2,14 +2,17 @@ package me.stojan.pasbox.ui
 
 import android.content.Context
 import android.transition.Transition
-import android.transition.TransitionManager
 import android.util.AttributeSet
 import android.view.View
+import android.view.ViewGroup
 import android.widget.FrameLayout
 
 open class TransitionView @JvmOverloads constructor(
   context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0
-) : FrameLayout(context, attrs, defStyleAttr) {
+) : FrameLayout(context, attrs, defStyleAttr),
+  ImplicitSceneRoot {
+
+  override val sceneRoot: ViewGroup? by ImplicitSceneRoot.Auto
 
   private var child = 0
 
@@ -28,14 +31,8 @@ open class TransitionView @JvmOverloads constructor(
 
         var nextChild = getChildAt(child)
 
-        TransitionManager.beginDelayedTransition(
-          this,
-          prepare?.invoke(value, nextChild, currentChild)
-        )
+        beginDelayedTransition(prepare?.invoke(value, nextChild, currentChild))
 
-        apply?.invoke(value, nextChild, currentChild)
-
-        TransitionManager.beginDelayedTransition(this)
         apply?.invoke(value, nextChild, currentChild)
 
         val delay = transitions[delayIndex(value)]
@@ -63,7 +60,7 @@ open class TransitionView @JvmOverloads constructor(
     get() = _transitions
     set(value) {
       _transitions = value
-      transition = 0
+      transition = transition
     }
 
   private var _apply: ((state: Int, new: View, old: View) -> Unit)? = null

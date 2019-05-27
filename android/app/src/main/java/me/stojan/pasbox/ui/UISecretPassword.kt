@@ -25,12 +25,8 @@
 
 package me.stojan.pasbox.ui
 
-import android.app.Activity
-import android.app.KeyguardManager
 import android.content.Context
-import android.transition.TransitionManager
 import android.util.AttributeSet
-import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
@@ -45,39 +41,21 @@ import me.stojan.pasbox.storage.SecretPublic
 
 class UISecretPassword @JvmOverloads constructor(
   context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0
-) : UISecret(context, attrs, defStyleAttr) {
+) : UISecret(context, attrs, defStyleAttr),
+  KeyguardButton.Callbacks {
 
   lateinit var title: TextView
-  lateinit var open: TextView
+  lateinit var open: KeyguardButton
   lateinit var opened: ViewGroup
   lateinit var password: TextInputEditText
-
-  private var remaining = 30
-
-  private val _countdown: Runnable get() = countdown
-  private val countdown: Runnable = Runnable {
-    mainThreadOnly {
-      TransitionManager.beginDelayedTransition(parent as ViewGroup)
-      open.text = resources.getString(R.string.password_will_close, remaining)
-      remaining = Math.max(0, remaining - 1)
-
-      if (remaining <= 0) {
-        password.text = null
-        opened.visibility = View.GONE
-        open.setOnTouchListener(null)
-        open.setText(R.string.password_touch_to_open)
-        open.visibility = View.GONE
-      } else {
-        postDelayed(_countdown, 1000)
-      }
-    }
-  }
 
   override fun onFinishInflate() {
     super.onFinishInflate()
 
     title = findViewById(R.id.title)
     open = findViewById(R.id.open)
+    open.requestCode = RequestCodes.UI_OPEN_PASSWORD_KEYGUARD
+    open.callbacks = this
     opened = findViewById(R.id.opened)
     password = opened.findViewById(R.id.password)
   }
@@ -85,95 +63,48 @@ class UISecretPassword @JvmOverloads constructor(
   override fun onBind(value: Pair<SecretPublic, Secret>) {
     super.onBind(value)
 
-    title.text = value.first.password.title
-    open.setText(R.string.password_touch_to_open)
-    open.setOnClickListener { onOpen() }
+    title.text = public.password.title
+    password.text = null
 
-    setOnClickListener { onClick() }
+    open.visibility = View.GONE
+    open.transition = 0
+
+    opened.visibility = View.GONE
+
+    setOnClickListener {
+      beginDelayedTransition()
+
+      when (open.visibility) {
+        View.VISIBLE -> {
+          open.visibility = View.GONE
+          opened.visibility = View.GONE
+          password.text = null
+        }
+        else -> open.visibility = View.VISIBLE
+      }
+    }
   }
 
   override fun onRecycle() {
     super.onRecycle()
 
-    removeCallbacks(_countdown)
+    password.text = null
   }
 
-  private fun onClick() {
-    TransitionManager.beginDelayedTransition(parent as ViewGroup)
+  override fun onSuccess(button: KeyguardButton) {
+    super.onSuccess(button)
 
-    when (open.visibility) {
-      View.VISIBLE -> {
-        removeCallbacks(countdown)
-        open.setOnTouchListener(null)
-        open.visibility = View.GONE
-        open.setText(R.string.password_touch_to_open)
-        password.text = null
-        opened.visibility = View.GONE
-      }
+    disposeOnRecycle(App.Components.Storage.secrets()
+      .open(Single.just(Pair(public, secret)))
+      .observeOn(AndroidSchedulers.mainThread())
+      .subscribe { (pub, pri) ->
+        mainThreadOnly {
+          beginDelayedTransition()
 
-      else -> {
-        open.visibility = View.VISIBLE
-      }
-    }
-  }
-
-  private fun onOpen() {
-    context.getSystemService(KeyguardManager::class.java).also { keyguardManager ->
-      activity.startActivityForResult(
-        keyguardManager.createConfirmDeviceCredentialIntent(
-          resources.getString(R.string.open_password_keyguard_title),
-          resources.getString(R.string.open_password_keyguard_description)
-        ), RequestCodes.UI_OPEN_PASSWORD_KEYGUARD
-      )
-
-      disposeOnRecycle(activity.results.filter { RequestCodes.UI_OPEN_PASSWORD_KEYGUARD == it.first }
-        .take(1)
-        .observeOn(AndroidSchedulers.mainThread())
-        .subscribe { (_, resultCode, _) ->
-          if (Activity.RESULT_OK == resultCode) {
-            open.setText(R.string.password_opening)
-
-            disposeOnRecycle(
-              App.Components.Storage.secrets()
-              .open(Single.just(Pair(public, secret)))
-              .observeOn(AndroidSchedulers.mainThread())
-              .subscribe { (public, private) ->
-
-                if (!recycled) {
-                  TransitionManager.beginDelayedTransition(parent as ViewGroup)
-                  opened.visibility = View.VISIBLE
-                  password.setText(private.password.password)
-                  autoclose()
-                }
-              })
-          } else {
-            open.setText(R.string.password_opening_failed_keyguard)
-          }
+          opened.visibility = View.VISIBLE
+          password.setText(pri.password.password)
         }
-      )
-    }
+      })
   }
 
-  private fun autoclose() {
-    mainThreadOnly {
-      remaining = 30
-      countdown.run()
-
-      open.setOnTouchListener { _, event ->
-        when (event.action) {
-          MotionEvent.ACTION_DOWN -> {
-            removeCallbacks(countdown)
-            true
-          }
-
-          MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-            countdown.run()
-            true
-          }
-
-          else -> false
-        }
-      }
-    }
-  }
 }

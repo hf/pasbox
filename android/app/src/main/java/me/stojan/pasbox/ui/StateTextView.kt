@@ -8,7 +8,7 @@ import android.util.AttributeSet
 import android.view.View
 import android.widget.TextView
 
-class StateTextView @JvmOverloads constructor(
+open class StateTextView @JvmOverloads constructor(
   context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0
 ) : TransitionView(context, attrs, defStyleAttr) {
 

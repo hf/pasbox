@@ -2,6 +2,7 @@ package me.stojan.pasbox.ui
 
 import android.content.Context
 import android.util.AttributeSet
+import android.view.ViewGroup
 import android.widget.FrameLayout
 import io.reactivex.disposables.CompositeDisposable
 import io.reactivex.disposables.Disposable
@@ -9,7 +10,9 @@ import me.stojan.pasbox.dev.mainThreadOnly
 
 abstract class UIRecyclerItem<T> @JvmOverloads constructor(
   context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0
-) : FrameLayout(context, attrs, defStyleAttr) {
+) : FrameLayout(context, attrs, defStyleAttr), ImplicitSceneRoot {
+
+  override val sceneRoot: ViewGroup? by ImplicitSceneRoot.Auto
 
   var onDone: (() -> Unit)? = null
 

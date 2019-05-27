@@ -25,27 +25,18 @@
 
 package me.stojan.pasbox.ui
 
-import android.app.Activity
-import android.app.KeyguardManager
 import android.content.Context
-import android.os.Build
-import android.text.Editable
-import android.text.TextWatcher
 import android.util.AttributeSet
-import android.view.View
+import android.view.ViewGroup
 import android.view.inputmethod.EditorInfo
 import android.widget.LinearLayout
-import android.widget.TextView
 import com.google.android.material.chip.Chip
 import com.google.android.material.chip.ChipGroup
 import com.google.android.material.textfield.TextInputEditText
 import com.google.android.material.textfield.TextInputLayout
-import io.reactivex.android.schedulers.AndroidSchedulers
-import me.stojan.pasbox.App
 import me.stojan.pasbox.R
 import me.stojan.pasbox.dev.Log
 import me.stojan.pasbox.dev.mainThreadOnly
-import me.stojan.pasbox.jobs.Jobs
 import me.stojan.pasbox.password.ASCIIPasswordGeneratorParams
 import me.stojan.pasbox.password.Password
 import me.stojan.pasbox.password.PasswordGenerator
@@ -54,9 +45,12 @@ import me.stojan.pasbox.storage.secrets.PasswordSecret
 class UICreatePassword @JvmOverloads constructor(
   context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0
 ) : LinearLayout(context, attrs, defStyleAttr),
-  ChildOf<UICreateSecret> {
+  ChildOf<UICreateSecret>,
+  ImplicitSceneRoot,
+  KeyguardButton.Callbacks {
 
   override val parentView: UICreateSecret by ChildOf.Auto()
+  override val sceneRoot: ViewGroup? by ImplicitSceneRoot.Auto
 
   private val activity: UIActivity get() = context as UIActivity
 
@@ -70,7 +64,6 @@ class UICreatePassword @JvmOverloads constructor(
   lateinit var username: TextInputEditText
 
   lateinit var password: TextInputEditText
-  var passwordTextWatcher: TextWatcher? = null
 
   lateinit var features: ChipGroup
   lateinit var featureMulticase: Chip
@@ -79,7 +72,7 @@ class UICreatePassword @JvmOverloads constructor(
 
   lateinit var size: ChipGroup
 
-  lateinit var save: TextView
+  lateinit var save: KeyguardButton
 
   private val canSave: Boolean get() = title.length() > 0 && password.length() > 0
 
@@ -92,7 +85,7 @@ class UICreatePassword @JvmOverloads constructor(
       setOnEditorActionListener { _, actionId, _ ->
         if (EditorInfo.IME_ACTION_DONE == actionId) {
           if (canSave) {
-            beginSave()
+            save.performClick()
             true
           } else {
             false
@@ -102,45 +95,6 @@ class UICreatePassword @JvmOverloads constructor(
         }
       }
 
-      addTextChangedListener(object : TextWatcher {
-        override fun afterTextChanged(s: Editable) {
-          while (s.isNotEmpty() && s[0].isWhitespace()) {
-            s.delete(0, 1)
-          }
-
-          Regex("([a-z-_]+(\\.[a-z-_]{2,})+)", RegexOption.IGNORE_CASE).find(s)
-            .let { matchResult ->
-              if (null == matchResult) {
-                website.text = null
-                username.text = null
-                websiteLayout.visibility = View.GONE
-                usernameLayout.visibility = View.GONE
-              } else {
-                website.setText(matchResult.value)
-                websiteLayout.visibility = View.VISIBLE
-
-                if (matchResult.range.first > 0) {
-                  username.setText(s.subSequence(0, matchResult.range.first).trim())
-                  usernameLayout.visibility = View.VISIBLE
-                } else if ((matchResult.range.endInclusive + 1) < s.length) {
-                  username.setText(s.subSequence((matchResult.range.endInclusive + 1), s.length).trim())
-                  usernameLayout.visibility = View.VISIBLE
-                } else {
-                  username.text = null
-                  usernameLayout.visibility = View.GONE
-                }
-              }
-            }
-
-          updateSave()
-        }
-
-        override fun beforeTextChanged(s: CharSequence, start: Int, count: Int, after: Int) {
-        }
-
-        override fun onTextChanged(s: CharSequence, start: Int, before: Int, count: Int) {
-        }
-      })
     }
 
     password = findViewById(R.id.password)
@@ -148,7 +102,7 @@ class UICreatePassword @JvmOverloads constructor(
       setOnEditorActionListener { _, actionId, _ ->
         if (EditorInfo.IME_ACTION_DONE == actionId) {
           if (canSave) {
-            beginSave()
+            save.performClick()
             true
           } else {
             false
@@ -173,11 +127,8 @@ class UICreatePassword @JvmOverloads constructor(
     size = findViewById(R.id.size)
 
     save = findViewById(R.id.save)
-    save.setOnClickListener {
-      if (canSave) {
-        beginSave()
-      }
-    }
+    save.requestCode = RequestCodes.UI_CREATE_PASSWORD_KEYGUARD
+    save.callbacks = this
 
     featureMulticase.setOnCheckedChangeListener { _, _ ->
       generatePassword()
@@ -201,7 +152,6 @@ class UICreatePassword @JvmOverloads constructor(
 
     post {
       generatePassword()
-      updateSave()
     }
   }
 
@@ -216,136 +166,40 @@ class UICreatePassword @JvmOverloads constructor(
       else -> throw RuntimeException("Unknown checked id=${size.checkedChipId}")
     }
 
-    if (null != passwordTextWatcher) {
-      password.removeTextChangedListener(passwordTextWatcher)
-    }
-
     password.setText(
       PasswordGenerator.getInstance()
         .run {
           generate(ASCIIPasswordGeneratorParams(length, multicase, digits, specials))
         })
+  }
 
-    passwordTextWatcher = object : TextWatcher {
-      override fun afterTextChanged(s: Editable) {
-        while (s.isNotEmpty() && s[0].isWhitespace()) {
-          s.delete(0, 1)
+  override fun onSuccess(button: KeyguardButton) {
+    super.onSuccess(button)
+
+    parentView.disposeOnRecycle(
+      parentView.save(
+      PasswordSecret.create(
+        title.text.toString(),
+        website.text?.toString(),
+        username.text?.toString(),
+        Password(password.text!!)
+      )
+    )
+      .subscribe({
+        Log.v(this@UICreatePassword) { text("PasswordSecret saved") }
+
+        mainThreadOnly {
+          parentView.onDone?.invoke()
         }
+      }, {
+        Log.v(this@UICreatePassword) { text("PasswordSecret failed to save"); error(it) }
 
-        updateSave()
-      }
-
-      override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {
-      }
-
-      override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
-      }
-    }
-
-    password.addTextChangedListener(passwordTextWatcher)
+        mainThreadOnly {
+          save.isEnabled = true
+          title.isEnabled = true
+          password.isEnabled = true
+        }
+      })
+    )
   }
-
-  private fun updateSave() {
-    if (title.length() > 0 && password.length() > 0) {
-      save.setText(R.string.password_touch_to_save)
-    } else if (title.length() <= 0) {
-      save.setText(R.string.password_enter_title_to_save)
-    } else if (password.length() <= 0) {
-      save.setText(R.string.password_enter_password_to_save)
-    } else {
-      save.text = null
-    }
-  }
-
-  private fun beginSave() {
-    save.isEnabled = false
-    title.isEnabled = false
-    password.isEnabled = false
-
-    context.getSystemService(KeyguardManager::class.java)
-      .let { keyguardManager ->
-
-        activity.startActivityForResult(
-          keyguardManager.createConfirmDeviceCredentialIntent(
-            resources.getString(R.string.create_password_keyguard_title),
-            resources.getString(R.string.create_password_keyguard_description)
-          ), RequestCodes.UI_CREATE_PASSWORD_KEYGUARD
-        )
-
-        parentView.disposeOnRecycle(activity.results.filter { RequestCodes.UI_CREATE_PASSWORD_KEYGUARD == it.first }
-          .take(1)
-          .subscribe { (_, resultCode, _) ->
-            mainThreadOnly {
-              if (Activity.RESULT_OK == resultCode) {
-                save.setText(R.string.password_saving)
-
-                val passwordData =
-                  PasswordSecret.create(
-                    title.text.toString(),
-                    website.text?.toString(),
-                    username.text?.toString(),
-                    Password(password.text!!)
-                  )
-
-                activity.disposeOnDestroy(
-                  Jobs.schedule(
-                    activity, App.Components.Storage.secrets()
-                      .save(passwordData).ignoreElement()
-                  ) {
-                    if (Build.VERSION.SDK_INT >= 28) {
-                      setImportantWhileForeground(true)
-                    } else {
-                      setMinimumLatency(0)
-                    }
-                    setOverrideDeadline(0)
-                  }.second.observeOn(AndroidSchedulers.mainThread())
-                    .subscribe({
-                      mainThreadOnly {
-                        Log.v(this@UICreatePassword) { text("PasswordSecret saved") }
-                        save.setText(R.string.password_saved)
-                        parentView.onDone?.invoke()
-                      }
-                    }, {
-                      mainThreadOnly {
-                        Log.v(this@UICreatePassword) { text("PasswordSecret failed to save"); error(it) }
-                        save.isEnabled = true
-                        title.isEnabled = true
-                        password.isEnabled = true
-                        save.setText(R.string.password_save_failed)
-                      }
-                    }),
-
-                  Jobs.schedule(
-                    activity, App.Components.Storage.backups()
-                      .backup(passwordData)
-                  ) {
-                    if (Build.VERSION.SDK_INT >= 28) {
-                      setImportantWhileForeground(true)
-                    } else {
-                      setMinimumLatency(0)
-                    }
-                    setOverrideDeadline(0)
-                  }.second.observeOn(AndroidSchedulers.mainThread())
-                    .subscribe({
-                      mainThreadOnly {
-                        Log.v(this@UICreatePassword) { text("Backuped password") }
-                      }
-                    }, {
-                      mainThreadOnly {
-                        Log.v(this@UICreatePassword) { text("PasswordSecret backup failed"); error(it) }
-                      }
-                    })
-                )
-              } else {
-                save.isEnabled = true
-                title.isEnabled = true
-                password.isEnabled = true
-                save.setText(R.string.password_saving_failed_keyguard)
-              }
-
-            }
-          })
-      }
-  }
-
 }

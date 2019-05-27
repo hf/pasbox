@@ -4,10 +4,8 @@ import android.app.ActivityManager
 import android.app.KeyguardManager
 import android.content.Context
 import android.content.Intent
-import android.transition.TransitionManager
 import android.util.AttributeSet
 import android.view.View
-import android.view.ViewGroup
 import android.widget.ProgressBar
 import android.widget.TextView
 import com.google.android.material.button.MaterialButton
@@ -232,7 +230,7 @@ class UISetupMasterPassword @JvmOverloads constructor(
   }
 
   private fun onSetup() {
-    TransitionManager.beginDelayedTransition(parent as ViewGroup)
+    beginDelayedTransition()
 
     adviseLayout.visibility = View.GONE
     setupLayout.visibility = View.VISIBLE
@@ -352,7 +350,7 @@ class UISetupMasterPassword @JvmOverloads constructor(
             .take(1)
             .subscribe { (_, resultCode, _) ->
 
-              TransitionManager.beginDelayedTransition(parent as ViewGroup)
+              beginDelayedTransition()
 
               setupLayout.visibility = View.GONE
               progressLayout.visibility = View.VISIBLE
@@ -380,7 +378,7 @@ class UISetupMasterPassword @JvmOverloads constructor(
             })
         }
     } else {
-      TransitionManager.beginDelayedTransition(parent as ViewGroup)
+      beginDelayedTransition()
 
       setupLayout.visibility = View.GONE
       progressLayout.visibility = View.VISIBLE

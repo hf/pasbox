@@ -32,6 +32,7 @@ import io.reactivex.Single
 import io.reactivex.disposables.Disposable
 
 interface KVStore {
+
   val modifications: Observable<Pair<Int, ByteArray?>>
 
   fun put(key: Int, value: Single<ByteArray>): Completable
