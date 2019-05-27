@@ -24,8 +24,18 @@ class OTPView @JvmOverloads constructor(
       removeCallbacks(callback)
       _totp = value
 
-      if (childCount > 0) {
-        display()
+      if (null != value) {
+        if (childCount > 0) {
+          display()
+        }
+      } else {
+        if (childCount > 0) {
+          progress.progress = 0
+          otpLayout.editText?.text = null
+          progressAnimator?.cancel()
+          progressAnimator = null
+          removeCallbacks(callback)
+        }
       }
     }
 
@@ -65,6 +75,7 @@ class OTPView @JvmOverloads constructor(
   override fun onDetachedFromWindow() {
     super.onDetachedFromWindow()
 
+    otpLayout.editText?.text = null
     removeCallbacks(callback)
     progressAnimator?.cancel()
 

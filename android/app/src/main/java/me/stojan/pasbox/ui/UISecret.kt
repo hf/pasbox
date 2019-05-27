@@ -35,13 +35,17 @@ abstract class UISecret @JvmOverloads constructor(
 ) : UIRecyclerItem<Pair<SecretPublic, Secret>>(context, attrs, defStyleAttr) {
   protected val activity: UIActivity get() = context as UIActivity
 
-  protected lateinit var public: SecretPublic
-  protected lateinit var secret: Secret
+  protected lateinit var value: Pair<SecretPublic, Secret>
+
+  protected val public: SecretPublic
+    get() = value.first
+
+  protected val secret: Secret
+    get() = value.second
 
   override fun onBind(value: Pair<SecretPublic, Secret>) {
     super.onBind(value)
 
-    public = value.first
-    secret = value.second
+    this.value = value
   }
 }
