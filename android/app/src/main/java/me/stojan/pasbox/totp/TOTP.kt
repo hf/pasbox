@@ -32,20 +32,23 @@ class TOTP private constructor(algorithm: String) {
   }
 
   private val mac: Mac = Mac.getInstance(algorithm)
-  private var step: Long = 30 * 1000
-  private var digits: Int = 8
+  private var _step: Long = 30 * 1000
+  private var _digits: Int = 8
+
+  val step: Long get() = _step
+  val digits: Int get() = _digits
 
   fun init(key: Key, stepMs: Long = 30 * 1000, digits: Int = 8) {
     if (stepMs <= 0) {
-      throw RuntimeException("step must be >= 0")
+      throw RuntimeException("_step must be >= 0")
     }
 
     if (digits <= 0) {
-      throw RuntimeException("digits must be >= 0")
+      throw RuntimeException("_digits must be >= 0")
     }
 
-    this.step = stepMs
-    this.digits = digits
+    this._step = stepMs
+    this._digits = digits
 
     mac.init(key)
   }
@@ -62,7 +65,7 @@ class TOTP private constructor(algorithm: String) {
 
   fun atTime(timeMs: Long): CharArray = mac.doFinal(
     ByteArray(8).also {
-      (timeMs / step).bigEndian(it)
+      (timeMs / _step).bigEndian(it)
     }
   ).let { hash ->
     (hash.last().toInt() and 0xF).let { offset ->
@@ -72,7 +75,7 @@ class TOTP private constructor(algorithm: String) {
         ((hash[2 + offset].toInt() and 0xFF) shl (1 * 8)) or
         ((hash[3 + offset].toInt() and 0xFF) shl (0 * 8))
     }.let { value ->
-      CharArray(digits)
+      CharArray(_digits)
         .also {
           Arrays.fill(it, '0')
 
@@ -94,16 +97,16 @@ class TOTP private constructor(algorithm: String) {
     other as TOTP
 
     if (mac != other.mac) return false
-    if (step != other.step) return false
-    if (digits != other.digits) return false
+    if (_step != other._step) return false
+    if (_digits != other._digits) return false
 
     return true
   }
 
   override fun hashCode(): Int {
     var result = mac.hashCode()
-    result = 31 * result + step.hashCode()
-    result = 31 * result + digits
+    result = 31 * result + _step.hashCode()
+    result = 31 * result + _digits
     return result
   }
 
@@ -111,10 +114,10 @@ class TOTP private constructor(algorithm: String) {
   override fun toString(): String {
     return String.format(
       Locale.US,
-      "TOTP@%x(type = %s, digits = %d, step = %d)",
+      "TOTP@%x(type = %s, _digits = %d, _step = %d)",
       System.identityHashCode(this) and 0xFF,
-      digits,
-      step
+      _digits,
+      _step
     )
   }
 }

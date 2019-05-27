@@ -41,7 +41,7 @@ class UICreateOTP @JvmOverloads constructor(
   private lateinit var valueLayout: ViewGroup
   private lateinit var title: TextInputEditText
   private lateinit var secret: TextInputEditText
-  private lateinit var otp: TextInputEditText
+  private lateinit var otp: OTPView
   private lateinit var save: KeyguardButton
 
   private var uri: Uri? = null
@@ -63,26 +63,28 @@ class UICreateOTP @JvmOverloads constructor(
   override fun onAttachedToWindow() {
     super.onAttachedToWindow()
 
-    when (ContextCompat.checkSelfPermission(activity, Manifest.permission.CAMERA)) {
-      PackageManager.PERMISSION_DENIED -> {
-        parentView.disposeOnRecycle(
-          activity.permissions
-            .filter { RequestCodes.UI_CREATE_2FA_REQUEST_CAMERA_PERMISSION == it.first }
-            .firstElement()
-            .subscribe {
-              when (it.third[0]) {
-                PackageManager.PERMISSION_GRANTED -> scanBarcode()
+    if (!isInEditMode) {
+      when (ContextCompat.checkSelfPermission(activity, Manifest.permission.CAMERA)) {
+        PackageManager.PERMISSION_DENIED -> {
+          parentView.disposeOnRecycle(
+            activity.permissions
+              .filter { RequestCodes.UI_CREATE_2FA_REQUEST_CAMERA_PERMISSION == it.first }
+              .firstElement()
+              .subscribe {
+                when (it.third[0]) {
+                  PackageManager.PERMISSION_GRANTED -> scanBarcode()
+                }
               }
-            }
-        )
+          )
 
-        activity.requestPermissions(
-          arrayOf(Manifest.permission.CAMERA),
-          RequestCodes.UI_CREATE_2FA_REQUEST_CAMERA_PERMISSION
-        )
+          activity.requestPermissions(
+            arrayOf(Manifest.permission.CAMERA),
+            RequestCodes.UI_CREATE_2FA_REQUEST_CAMERA_PERMISSION
+          )
+        }
+
+        else -> scanBarcode()
       }
-
-      else -> scanBarcode()
     }
   }
 
@@ -142,20 +144,16 @@ class UICreateOTP @JvmOverloads constructor(
     this.title.setText(label.replace(':', ' '))
     this.secret.setText(secret)
 
-    this.otp.setText(
-      String(
-        TOTP.getInstance(
-          when (algorithm) {
-            "SHA256" -> TOTP.HMAC_SHA256
-            "SHA512" -> TOTP.HMAC_SHA512
-            else -> TOTP.HMAC_SHA1
-          }
-        ).run {
-          init(secret.decodeBase32(), digits = digits, stepMs = period * 1000L)
-          now()
+    this.otp.totp =
+      TOTP.getInstance(
+        when (algorithm) {
+          "SHA256" -> TOTP.HMAC_SHA256
+          "SHA512" -> TOTP.HMAC_SHA512
+          else -> TOTP.HMAC_SHA1
         }
-      )
-    )
+      ).apply {
+        init(secret.decodeBase32(), digits = digits, stepMs = period * 1000L)
+      }
   }
 
   override fun onSuccess(button: KeyguardButton) {
