@@ -30,7 +30,7 @@ import android.util.AttributeSet
 import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
-import com.google.android.material.textfield.TextInputEditText
+import com.google.android.material.textfield.TextInputLayout
 import io.reactivex.Single
 import io.reactivex.android.schedulers.AndroidSchedulers
 import me.stojan.pasbox.App
@@ -44,43 +44,59 @@ class UISecretPassword @JvmOverloads constructor(
 ) : UISecret(context, attrs, defStyleAttr),
   KeyguardButton.Callbacks {
 
+  private lateinit var opened: ViewGroup
+  private lateinit var toOpen: ViewGroup
+  private lateinit var closed: ViewGroup
+
   lateinit var title: TextView
   lateinit var open: KeyguardButton
-  lateinit var opened: ViewGroup
-  lateinit var password: TextInputEditText
+  lateinit var password: TextInputLayout
 
   override fun onFinishInflate() {
     super.onFinishInflate()
 
+    opened = findViewById(R.id.opened)
+    toOpen = findViewById(R.id.to_open)
+    closed = findViewById(R.id.closed)
+
     title = findViewById(R.id.title)
+    password = findViewById(R.id.password)
     open = findViewById(R.id.open)
     open.requestCode = RequestCodes.UI_OPEN_PASSWORD_KEYGUARD
     open.callbacks = this
-    opened = findViewById(R.id.opened)
-    password = opened.findViewById(R.id.password)
   }
 
   override fun onBind(value: Pair<SecretPublic, Secret>) {
     super.onBind(value)
 
-    title.text = public.password.title
-    password.text = null
-
-    open.visibility = View.GONE
-    open.transition = 0
-
     opened.visibility = View.GONE
+    toOpen.visibility = View.GONE
+    closed.visibility = View.VISIBLE
+
+    title.text = public.password.title
+    password.editText?.text = null
+
+    open.transition = 0
 
     setOnClickListener {
       beginDelayedTransition()
 
-      when (open.visibility) {
+      when (closed.visibility) {
         View.VISIBLE -> {
-          open.visibility = View.GONE
+          closed.visibility = View.GONE
           opened.visibility = View.GONE
-          password.text = null
+          toOpen.visibility = View.VISIBLE
+
+          open.transition = 0
         }
-        else -> open.visibility = View.VISIBLE
+
+        else -> {
+          opened.visibility = View.GONE
+          toOpen.visibility = View.GONE
+          closed.visibility = View.VISIBLE
+
+          password.editText?.text = null
+        }
       }
     }
   }
@@ -88,7 +104,7 @@ class UISecretPassword @JvmOverloads constructor(
   override fun onRecycle() {
     super.onRecycle()
 
-    password.text = null
+    password.editText?.text = null
   }
 
   override fun onSuccess(button: KeyguardButton) {
@@ -97,12 +113,15 @@ class UISecretPassword @JvmOverloads constructor(
     disposeOnRecycle(App.Components.Storage.secrets()
       .open(Single.just(Pair(public, secret)))
       .observeOn(AndroidSchedulers.mainThread())
-      .subscribe { (pub, pri) ->
+      .subscribe { (_, private) ->
         mainThreadOnly {
           beginDelayedTransition()
 
+          closed.visibility = View.GONE
+          toOpen.visibility = View.GONE
           opened.visibility = View.VISIBLE
-          password.setText(pri.password.password)
+
+          password.editText?.setText(private.password.password)
         }
       })
   }
