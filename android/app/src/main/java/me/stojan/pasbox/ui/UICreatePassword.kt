@@ -28,11 +28,9 @@ package me.stojan.pasbox.ui
 import android.content.Context
 import android.util.AttributeSet
 import android.view.ViewGroup
-import android.view.inputmethod.EditorInfo
 import android.widget.LinearLayout
 import com.google.android.material.chip.Chip
 import com.google.android.material.chip.ChipGroup
-import com.google.android.material.textfield.TextInputEditText
 import com.google.android.material.textfield.TextInputLayout
 import me.stojan.pasbox.R
 import me.stojan.pasbox.dev.Log
@@ -52,18 +50,10 @@ class UICreatePassword @JvmOverloads constructor(
   override val parentView: UICreateSecret by ChildOf.Auto()
   override val sceneRoot: ViewGroup? by ImplicitSceneRoot.Auto
 
-  private val activity: UIActivity get() = context as UIActivity
-
-  lateinit var titleLayout: TextInputLayout
-  lateinit var title: TextInputEditText
-
-  lateinit var websiteLayout: TextInputLayout
-  lateinit var website: TextInputEditText
-
-  lateinit var usernameLayout: TextInputLayout
-  lateinit var username: TextInputEditText
-
-  lateinit var password: TextInputEditText
+  lateinit var title: TextInputLayout
+  lateinit var website: TextInputLayout
+  lateinit var username: TextInputLayout
+  lateinit var password: TextInputLayout
 
   lateinit var features: ChipGroup
   lateinit var featureMulticase: Chip
@@ -74,49 +64,18 @@ class UICreatePassword @JvmOverloads constructor(
 
   lateinit var save: KeyguardButton
 
-  private val canSave: Boolean get() = title.length() > 0 && password.length() > 0
+  private val canSave: Boolean get() = (title.editText?.length() ?: 0) > 0 && (password.editText?.length() ?: 0) > 0
 
   override fun onFinishInflate() {
     super.onFinishInflate()
 
     title = findViewById(R.id.title)
     title.apply {
-      requestFocus()
-      setOnEditorActionListener { _, actionId, _ ->
-        if (EditorInfo.IME_ACTION_DONE == actionId) {
-          if (canSave) {
-            save.performClick()
-            true
-          } else {
-            false
-          }
-        } else {
-          false
-        }
-      }
-
+      editText?.requestFocus()
     }
 
     password = findViewById(R.id.password)
-    password.apply {
-      setOnEditorActionListener { _, actionId, _ ->
-        if (EditorInfo.IME_ACTION_DONE == actionId) {
-          if (canSave) {
-            save.performClick()
-            true
-          } else {
-            false
-          }
-        } else {
-          false
-        }
-      }
-    }
-
-    websiteLayout = findViewById(R.id.website_layout)
     website = findViewById(R.id.website)
-
-    usernameLayout = findViewById(R.id.username_layout)
     username = findViewById(R.id.username)
 
     features = findViewById(R.id.features)
@@ -166,7 +125,7 @@ class UICreatePassword @JvmOverloads constructor(
       else -> throw RuntimeException("Unknown checked id=${size.checkedChipId}")
     }
 
-    password.setText(
+    password.editText?.setText(
       PasswordGenerator.getInstance()
         .run {
           generate(ASCIIPasswordGeneratorParams(length, multicase, digits, specials))
@@ -178,28 +137,28 @@ class UICreatePassword @JvmOverloads constructor(
 
     parentView.disposeOnRecycle(
       parentView.save(
-      PasswordSecret.create(
-        title.text.toString(),
-        website.text?.toString(),
-        username.text?.toString(),
-        Password(password.text!!)
+        PasswordSecret.create(
+          title.editText!!.text.toString(),
+          website.editText!!.text.toString(),
+          username.editText!!.text.toString(),
+          Password(password.editText!!.text)
+        )
       )
-    )
-      .subscribe({
-        Log.v(this@UICreatePassword) { text("PasswordSecret saved") }
+        .subscribe({
+          Log.v(this@UICreatePassword) { text("PasswordSecret saved") }
 
-        mainThreadOnly {
-          parentView.onDone?.invoke()
-        }
-      }, {
-        Log.v(this@UICreatePassword) { text("PasswordSecret failed to save"); error(it) }
+          mainThreadOnly {
+            parentView.onDone?.invoke()
+          }
+        }, {
+          Log.v(this@UICreatePassword) { text("PasswordSecret failed to save"); error(it) }
 
-        mainThreadOnly {
-          save.isEnabled = true
-          title.isEnabled = true
-          password.isEnabled = true
-        }
-      })
+          mainThreadOnly {
+            save.isEnabled = true
+            title.isEnabled = true
+            password.isEnabled = true
+          }
+        })
     )
   }
 }
